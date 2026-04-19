@@ -1,0 +1,65 @@
+# Virtual Environment
+venv/
+.venv/
+env/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+phishing_detection.db
+
+# Environment - not needed for this project
+# .env
+# .env.local
+
+# Uploads
+uploads/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Screenshots
+screenshots/
+
+# Temporary files
+*.tmp
+*.bak
+
+# Model files (keep pkl for deployment)
+*.h5
+*.joblib
+
+# Images
+*.png
+*.jpg
+*.jpeg
+!static/
+
+# Jupyter
+.ipynb_checkpoints/

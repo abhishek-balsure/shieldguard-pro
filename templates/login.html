@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Login - ShieldGuard Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .auth-card {
+        max-width: 450px;
+        margin: 4rem auto;
+        padding: 3rem;
+    }
+
+    .auth-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, var(--bright-blue), var(--green));
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        margin: 0 auto 2rem;
+        box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+        color: white;
+    }
+
+    /* Responsive */
+    @media (max-width: 576px) {
+        .auth-card { padding: 1.5rem !important; margin: 1rem; }
+        .auth-icon { width: 60px; height: 60px; font-size: 1.75rem; margin-bottom: 1rem; }
+        h2 { font-size: 1.5rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="glass-card auth-card fade-up">
+        <div class="text-center">
+            <div class="auth-icon">
+                <i class="bi bi-shield-lock-fill"></i>
+            </div>
+            <h2 class="fw-bold mb-1">Welcome <span class="gradient-text">Back</span></h2>
+            <p class="text-muted mb-4">Securely access your threat intelligence dashboard.</p>
+        </div>
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <div class="mb-3">
+                <label class="form-label small uppercase tracking-wider text-dim">Username</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-person"></i></span>
+                    <input type="text" class="form-control" name="username" placeholder="Username" required autofocus>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label small uppercase tracking-wider text-dim">Password</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                    <input type="password" class="form-control" name="password" placeholder="••••••••" required>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="remember">
+                    <label class="form-check-label small text-dim" for="remember">Remember me</label>
+                </div>
+                <a href="#" class="small text-accent text-decoration-none">Forgot password?</a>
+            </div>
+
+            <button type="submit" class="btn btn-glow w-100 py-2 mb-4">
+                Sign In
+            </button>
+        </form>
+
+        <div class="text-center pt-3 border-top">
+            <p class="text-muted small mb-0">New to ShieldGuard?
+                <a href="{{ url_for('signup') }}" class="text-accent fw-bold text-decoration-none">Create account</a>
+            </p>
+        </div>
+
+
+    </div>
+</div>
+{% endblock %}

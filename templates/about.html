@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Intelligence Brief - ShieldGuard Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .about-hero {
+        padding: 6rem 0;
+        text-align: center;
+    }
+
+    .about-card-icon {
+        width: 60px;
+        height: 60px;
+        background: var(--primary-gradient);
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+    }
+
+    .tech-pill {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--glass-border);
+        padding: 1rem 1.5rem;
+        border-radius: var(--radius-lg);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: var(--transition);
+    }
+
+    .tech-pill:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: var(--accent);
+        transform: translateY(-5px);
+    }
+
+    .pipeline-step-premium {
+        border-left: 2px solid var(--glass-border);
+        padding-left: 2rem;
+        padding-bottom: 2rem;
+        position: relative;
+    }
+
+    .pipeline-step-premium::before {
+        content: '';
+        position: absolute;
+        left: -6px;
+        top: 0;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 15px var(--accent);
+    }
+
+    .pipeline-step-premium:last-child {
+        border-left: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- Hero Section -->
+    <div class="about-hero fade-in">
+        <span class="badge badge-glow mb-4">PLATFORM INTELLIGENCE</span>
+        <h1 class="display-3 fw-bold mb-3">Architecting <span class="gradient-text">Digital Trust</span></h1>
+        <p class="text-dim lead max-width-700 mx-auto">ShieldGuard Pro is a next-generation neural scanning engine
+            designed to neutralize phishing threats before they breach your perimeter.</p>
+    </div>
+
+    <!-- Core Mission -->
+    <div class="row g-5 align-items-center mb-5">
+        <div class="col-lg-6 fade-up">
+            <h2 class="fw-bold mb-4">Neural Defense <span class="text-accent">Protocol</span></h2>
+            <p class="text-dim mb-4">Phishing is the most successful entry vector for modern cyber attacks. Our mission
+                is to democratize high-level threat intelligence by providing an accessible, ML-driven defense layer for
+                every user.</p>
+
+            <div class="row g-4 mb-4">
+                <div class="col-6">
+                    <div class="glass-card p-3">
+                        <div class="h3 fw-bold gradient-text mb-0">95.4%</div>
+                        <div class="small text-muted uppercase">Model Accuracy</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="glass-card p-3">
+                        <div class="h3 fw-bold gradient-text mb-0">28+</div>
+                        <div class="small text-muted uppercase">Neural Features</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 fade-up">
+            <div class="glass-card p-4">
+                <h5 class="mb-4">Intelligence Pipeline</h5>
+                <div class="pipeline-step-premium">
+                    <h6 class="fw-bold">Feature Synthesis</h6>
+                    <p class="small text-dim">Extracting 28 dimensional features from URI lexical structure and TLD
+                        patterns.</p>
+                </div>
+                <div class="pipeline-step-premium">
+                    <h6 class="fw-bold">Neural Classification</h6>
+                    <p class="small text-dim">Random Forest ensemble execution across 100 decision nodes to generate
+                        risk score.</p>
+                </div>
+                <div class="pipeline-step-premium">
+                    <h6 class="fw-bold">Cross-Link Validation</h6>
+                    <p class="small text-dim">Real-time verification against global threat feeds (PhishTank, URLhaus).
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Technology Stack -->
+    <div class="text-center mb-5 mt-5">
+        <h2 class="fw-bold">The Core <span class="gradient-text">Engine</span></h2>
+        <p class="text-dim">Our tech stack is engineered for latency-zero threat assessment.</p>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-lg-3 col-md-6">
+            <div class="tech-pill">
+                <i class="bi bi-filetype-py h3 text-primary mb-0"></i>
+                <div>
+                    <div class="fw-bold">Python</div>
+                    <div class="smaller text-dim">Neural Engine</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="tech-pill">
+                <i class="bi bi-cpu h3 text-warning mb-0"></i>
+                <div>
+                    <div class="fw-bold">Sklearn</div>
+                    <div class="smaller text-dim">ML Infrastructure</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="tech-pill">
+                <i class="bi bi-box-seam h3 text-success mb-0"></i>
+                <div>
+                    <div class="fw-bold">Flask</div>
+                    <div class="smaller text-dim">API Gateway</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="tech-pill">
+                <i class="bi bi-code-square h3 text-accent mb-0"></i>
+                <div>
+                    <div class="fw-bold">Vanilla CSS</div>
+                    <div class="smaller text-dim">UI Layer</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Future Section -->
+    <div class="glass-card p-5 mt-5 fade-up overflow-hidden position-relative">
+        <div class="row align-items-center position-relative" style="z-index: 2;">
+            <div class="col-lg-8">
+                <h3 class="fw-bold">Expanding the <span class="text-accent">Protection Layer</span></h3>
+                <p class="text-dim">We are continuously training our models with new threat datasets to stay ahead of
+                    zero-day phishing campaigns.</p>
+                <div class="d-flex flex-wrap gap-3 mt-4">
+                    <span class="badge bg-white bg-opacity-10 p-2 px-3 border border-secondary border-opacity-30 text-light">Live
+                        Camera Scan</span>
+                    <span class="badge bg-white bg-opacity-10 p-2 px-3 border border-secondary border-opacity-30 text-light">Deep
+                        Learning v2</span>
+                    <span class="badge bg-white bg-opacity-10 p-2 px-3 border border-secondary border-opacity-30 text-light">API
+                        Access</span>
+                </div>
+            </div>
+            <div class="col-lg-4 text-center d-none d-lg-block">
+                <i class="bi bi-rocket-takeoff display-1 text-accent opacity-20"></i>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

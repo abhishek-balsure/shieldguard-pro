@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Batch URL Check - Phishing Detection{% endblock %}
+
+{% block extra_css %}
+<style>
+.upload-area {
+    border: 2px dashed #1e3a5f;
+    border-radius: 12px;
+    padding: 40px;
+    text-align: center;
+    background: #15203b;
+    transition: all 0.3s ease;
+}
+.upload-area:hover {
+    border-color: #06b6d4;
+    background: rgba(6, 182, 212, 0.05);
+}
+.result-card {
+    border-radius: 12px;
+    border: 1px solid #1e3a5f;
+    background: #15203b;
+    transition: transform 0.2s;
+}
+.result-card:hover {
+    transform: translateY(-2px);
+    border-color: #3b82f6;
+}
+.url-item {
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    transition: all 0.2s;
+    background: #0d1421;
+    border: 1px solid #1e3a5f;
+}
+.url-item.phishing {
+    border-left: 4px solid #ef4444;
+}
+.url-item.safe {
+    border-left: 4px solid #10b981;
+}
+.stat-card {
+    border-radius: 12px;
+    border: 1px solid #1e3a5f;
+    background: #15203b;
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+@media (max-width: 768px) {
+    .container { padding: 15px; }
+    h1 { font-size: 1.75rem; }
+    .upload-area { padding: 30px 15px; }
+}
+@media (max-width: 576px) {
+    h1 { font-size: 1.5rem; }
+    .lead { font-size: 0.9rem; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            <h1 class="display-5 fw-bold text-primary">
+                <i class="bi bi-files"></i> Batch URL Scanner
+            </h1>
+            <p class="lead text-muted">Scan multiple URLs at once from text or CSV files</p>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Upload Form -->
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-success text-white py-3">
+                    <h4 class="mb-0">
+                        <i class="bi bi-cloud-upload"></i> Upload URLs
+                    </h4>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" action="{{ url_for('batch_check') }}" enctype="multipart/form-data">
+                        <!-- Text Input -->
+                        <div class="mb-4">
+                            <label for="urls" class="form-label fw-bold">
+                                <i class="bi bi-input-cursor-text"></i> Paste URLs (one per line)
+                            </label>
+                            <textarea class="form-control" id="urls" name="urls" rows="8"
+                                      placeholder="https://example.com&#10;https://suspicious-site.tk/login&#10;https://google.com">{{ request.form.urls if request.form else '' }}</textarea>
+                        </div>
+
+                        <div class="text-center mb-4">
+                            <span class="badge bg-light text-dark border">OR</span>
+                        </div>
+
+                        <!-- File Upload -->
+                        <div class="upload-area mb-4">
+                            <i class="bi bi-file-earmark-text display-1 text-muted mb-3"></i>
+                            <h5>Upload File</h5>
+                            <p class="text-muted mb-3">CSV or TXT file with URLs</p>
+                            <input type="file" class="form-control" id="file" name="file" 
+                                   accept=".csv,.txt">
+                            <div class="form-text mt-2">
+                                <i class="bi bi-info-circle"></i> CSV should have URLs in first column
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success btn-lg w-100">
+                            <i class="bi bi-shield-check"></i> Scan All URLs
+                        </button>
+                    </form>
+
+                    <!-- Instructions -->
+                    <div class="mt-4">
+                        <h6 class="text-muted"><i class="bi bi-info-circle"></i> Supported Formats</h6>
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-6">
+                                <div class="card h-100 border bg-light">
+                                    <div class="card-body">
+                                        <h6><i class="bi bi-filetype-csv text-success"></i> CSV Files</h6>
+                                        <p class="small text-muted mb-0">
+                                            First column should contain URLs. Header row is optional.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card h-100 border bg-light">
+                                    <div class="card-body">
+                                        <h6><i class="bi bi-filetype-txt text-primary"></i> Text Files</h6>
+                                        <p class="small text-muted mb-0">
+                                            One URL per line. Empty lines are automatically ignored.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

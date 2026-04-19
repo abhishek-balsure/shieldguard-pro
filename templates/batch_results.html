@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}Batch Results - Phishing Detection{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-card {
+    border-radius: 15px;
+    border: none;
+    padding: 25px 15px;
+    text-align: center;
+    color: white;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+.stat-number {
+    font-size: 3rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+.result-row {
+    transition: all 0.2s;
+}
+.result-row:hover {
+    transform: scale(1.01);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.url-code {
+    font-size: 0.85rem;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.confidence-bar {
+    height: 28px;
+    border-radius: 14px;
+    overflow: hidden;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <div>
+                    <h1 class="display-5 fw-bold text-success">
+                        <i class="bi bi-check-circle"></i> Scan Complete
+                    </h1>
+                    <p class="lead text-muted mb-0">Batch URL analysis results</p>
+                </div>
+                <div class="mt-3 mt-md-0">
+                    <a href="{{ url_for('batch_check') }}" class="btn btn-outline-success">
+                        <i class="bi bi-arrow-left"></i> Scan Another Batch
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="stat-number">{{ total }}</div>
+                <div class="fs-5">Total URLs</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="stat-number">{{ malicious }}</div>
+                <div class="fs-5">Phishing Detected</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="stat-number">{{ safe }}</div>
+                <div class="fs-5">Safe URLs</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Alert -->
+    {% if malicious > 0 %}
+    <div class="alert alert-danger d-flex align-items-center mb-4 shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill fs-3 me-3"></i>
+        <div>
+            <h5 class="alert-heading mb-1">Warning: Phishing URLs Detected!</h5>
+            <p class="mb-0">
+                Found <strong>{{ malicious }}</strong> potentially malicious URLs out of {{ total }} scanned. 
+                Do not click on any links marked as phishing.
+            </p>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-success d-flex align-items-center mb-4 shadow-sm" role="alert">
+        <i class="bi bi-shield-check fs-3 me-3"></i>
+        <div>
+            <h5 class="alert-heading mb-1">All Clear!</h5>
+            <p class="mb-0">
+                All {{ total }} URLs scanned appear to be safe. No phishing attempts detected.
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Results Table -->
+    <div class="card shadow-lg border-0">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center flex-wrap" style="background: var(--bright-blue); color: white;">
+            <h4 class="mb-0">
+                <i class="bi bi-list-check"></i> Detailed Results
+            </h4>
+            <button class="btn btn-light btn-sm" onclick="exportToCSV()">
+                <i class="bi bi-download"></i> Export CSV
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="resultsTable">
+                    <thead style="background: var(--light-blue);">
+                        <tr>
+                            <th class="ps-4">#</th>
+                            <th>URL</th>
+                            <th>Result</th>
+                            <th>Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in results %}
+                        <tr class="result-row {{ 'table-danger' if result.result == 'phishing' else 'table-success' }}">
+                            <td class="ps-4 fw-bold">{{ loop.index }}</td>
+                            <td style="max-width: 400px;">
+                                <code class="url-code text-break" title="{{ result.url }}">
+                                    {{ result.url[:70] }}{% if result.url|length > 70 %}...{% endif %}
+                                </code>
+                            </td>
+                            <td>
+                                {% if result.result == 'phishing' %}
+                                <span class="badge bg-danger fs-6 px-3 py-2">
+                                    <i class="bi bi-exclamation-triangle"></i> Phishing
+                                </span>
+                                {% else %}
+                                <span class="badge bg-success fs-6 px-3 py-2">
+                                    <i class="bi bi-check-circle"></i> Safe
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td style="width: 200px;">
+                                <div class="progress confidence-bar">
+                                    <div class="progress-bar progress-bar-striped {{ 'bg-danger' if result.result == 'phishing' else 'bg-success' }}" 
+                                         role="progressbar" 
+                                         style="width: {{ result.confidence }}%">
+                                        {{ "%.1f"|format(result.confidence) }}%
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-light">
+            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <span class="text-muted">
+                    <i class="bi bi-info-circle"></i> Showing all {{ results|length }} results
+                </span>
+                <div class="mt-2 mt-md-0">
+                    <a href="{{ url_for('history') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-clock-history"></i> View History
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function exportToCSV() {
+    const table = document.getElementById('resultsTable');
+    const rows = table.querySelectorAll('tr');
+    let csv = [];
+    
+    // Header
+    csv.push(['#', 'URL', 'Result', 'Confidence']);
+    
+    // Data rows
+    for (let i = 1; i < rows.length; i++) {
+        const cells = rows[i].querySelectorAll('td');
+        if (cells.length > 0) {
+            const row = [
+                cells[0].textContent.trim(),
+                cells[1].textContent.trim(),
+                cells[2].textContent.trim(),
+                cells[3].textContent.trim()
+            ];
+            csv.push(row);
+        }
+    }
+    
+    // Create CSV content
+    const csvContent = csv.map(e => e.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    
+    // Download
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', 'batch_scan_results.csv');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+</script>
+{% endblock %}

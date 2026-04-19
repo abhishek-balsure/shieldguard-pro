@@ -1,0 +1,391 @@
+{% extends "base.html" %}
+
+{% block title %}Scanner - ShieldGuard Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .scanner-card {
+        border: none;
+        border-radius: 24px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    .scanner-header {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        padding: 30px;
+        color: white;
+    }
+    .scan-tabs {
+        border-bottom: none;
+        background: #f8f9fa;
+        padding: 15px 15px 0 15px;
+    }
+    .scan-tabs .nav-link {
+        border: none;
+        border-radius: 12px 12px 0 0;
+        padding: 15px 25px;
+        font-weight: 600;
+        color: #495057;
+        transition: all 0.3s;
+    }
+    .scan-tabs .nav-link:hover {
+        background: rgba(102, 126, 234, 0.1);
+    }
+    .scan-tabs .nav-link.active {
+        background: white;
+        color: #667eea;
+        box-shadow: 0 -5px 20px rgba(0,0,0,0.05);
+    }
+    .scan-tab-content {
+        background: white;
+        padding: 30px;
+    }
+    .result-box {
+        border-radius: 16px;
+        padding: 25px;
+        margin-top: 25px;
+    }
+    .result-phishing {
+        background: linear-gradient(135deg, rgba(255, 107, 107, 0.1) 0%, rgba(238, 90, 90, 0.05) 100%);
+        border: 2px solid #ff6b6b;
+    }
+    .result-safe {
+        background: linear-gradient(135deg, rgba(81, 207, 102, 0.1) 0%, rgba(64, 192, 87, 0.05) 100%);
+        border: 2px solid #51cf66;
+    }
+    .result-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        margin: 0 auto 15px;
+    }
+    .result-phishing .result-icon {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+        color: white;
+    }
+    .result-safe .result-icon {
+        background: linear-gradient(135deg, #51cf66 0%, #40c057 100%);
+        color: white;
+    }
+    .upload-zone {
+        border: 3px dashed #dee2e6;
+        border-radius: 16px;
+        padding: 40px;
+        text-align: center;
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+    .upload-zone:hover {
+        border-color: #667eea;
+        background: rgba(102, 126, 234, 0.05);
+    }
+    .upload-zone.dragover {
+        border-color: #667eea;
+        background: rgba(102, 126, 234, 0.1);
+    }
+    .feature-badge {
+        display: inline-block;
+        background: #f8f9fa;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        margin: 3px;
+    }
+    .action-btn-group .btn {
+        border-radius: 10px;
+        padding: 10px 20px;
+    }
+    .qr-preview {
+        max-width: 200px;
+        border-radius: 12px;
+        margin: 15px auto;
+        display: none;
+    }
+    .qr-preview.show {
+        display: block;
+    }
+    
+    /* Responsive */
+    @media (max-width: 992px) {
+        .scanner-header { padding: 20px; }
+        .scan-tab-content { padding: 20px; }
+        .result-box { padding: 20px; }
+    }
+    
+    @media (max-width: 768px) {
+        .container { padding-left: 15px; padding-right: 15px; }
+        .scanner-card { border-radius: 16px; }
+        .scanner-header h2 { font-size: 1.5rem; }
+        .scan-tabs .nav-link { padding: 12px 15px; font-size: 0.9rem; }
+        .upload-zone { padding: 25px 15px; }
+        .result-icon { width: 60px; height: 60px; font-size: 1.75rem; }
+    }
+    
+    @media (max-width: 576px) {
+        .scan-tabs { 
+            display: flex; 
+            overflow-x: auto;
+            gap: 5px;
+        }
+        .scan-tabs .nav-link {
+            white-space: nowrap;
+            font-size: 0.85rem;
+            padding: 10px 12px;
+        }
+        .result-box { padding: 15px; margin-top: 15px; }
+        .action-btn-group .btn { width: 100%; margin-bottom: 10px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="scanner-card">
+                <div class="scanner-header text-center">
+                    <h2 class="fw-bold mb-2">
+                        <i class="bi bi-shield-scan"></i> Multi-Scanner
+                    </h2>
+                    <p class="mb-0 opacity-75">Check URLs, Emails, and QR Codes all in one place</p>
+                </div>
+                
+                <!-- Scan Type Tabs -->
+                <div class="scan-tabs">
+                    <ul class="nav nav-tabs justify-content-center" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#url-scan" type="button">
+                                <i class="bi bi-link-45deg me-2"></i>URL Scanner
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#batch-scan" type="button">
+                                <i class="bi bi-files me-2"></i>Batch Check
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#email-scan" type="button">
+                                <i class="bi bi-envelope me-2"></i>Email Scanner
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#qr-scan" type="button">
+                                <i class="bi bi-qr-code me-2"></i>QR Scanner
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Tab Content -->
+                <div class="scan-tab-content">
+                    <div class="tab-content">
+                        
+                        <!-- URL Scanner Tab -->
+                        <div class="tab-pane fade show active" id="url-scan">
+                            <form method="POST" action="{{ url_for('check_url') }}">
+                                <div class="mb-4">
+                                    <label class="form-label fw-semibold">Enter URL to Check</label>
+                                    <div class="input-group input-group-lg">
+                                        <span class="input-group-text"><i class="bi bi-globe"></i></span>
+                                        <input type="url" name="url" class="form-control" placeholder="https://example.com" required>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-lg w-100">
+                                    <i class="bi bi-shield-check me-2"></i>Analyze URL
+                                </button>
+                            </form>
+                            
+                            {% if url_result %}
+                            <div class="result-box {{ 'result-phishing' if url_result.is_phishing else 'result-safe' }}">
+                                <div class="result-icon">
+                                    <i class="bi {{ 'bi-exclamation-triangle' if url_result.is_phishing else 'bi-check-circle' }}"></i>
+                                </div>
+                                <h4 class="text-center {{ 'text-danger' if url_result.is_phishing else 'text-success' }}">
+                                    {{ '⚠️ Phishing Detected!' if url_result.is_phishing else '✅ URL is Safe' }}
+                                </h4>
+                                <p class="text-center text-muted mb-3">
+                                    Confidence: <strong>{{ "%.1f"|format(url_result.confidence) }}%</strong>
+                                </p>
+                                <div class="d-flex justify-content-center gap-2 action-btn-group">
+                                    <form method="POST" action="{{ url_for('add_bookmark') }}" class="d-inline">
+                                        <input type="hidden" name="url" value="{{ url }}">
+                                        <input type="hidden" name="result" value="{{ url_result.result }}">
+                                        <input type="hidden" name="confidence" value="{{ url_result.confidence }}">
+                                        <button type="submit" class="btn btn-outline-danger">
+                                            <i class="bi bi-bookmark-heart me-1"></i>Bookmark
+                                        </button>
+                                    </form>
+                                    <button class="btn btn-outline-primary" onclick="copyToClipboard('{{ url }}')">
+                                        <i class="bi bi-clipboard me-1"></i>Copy
+                                    </button>
+                                    <a href="{{ url_for('scanner') }}" class="btn btn-primary">
+                                        <i class="bi bi-arrow-repeat me-1"></i>New Scan
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Batch Scanner Tab -->
+                        <div class="tab-pane fade" id="batch-scan">
+                            <form method="POST" action="{{ url_for('batch_check') }}">
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Enter URLs (one per line)</label>
+                                    <textarea name="urls" class="form-control" rows="8" placeholder="https://example1.com&#10;https://example2.com&#10;https://example3.com"></textarea>
+                                </div>
+                                <div class="mb-4">
+                                    <label class="form-label fw-semibold">Or upload a file</label>
+                                    <input type="file" name="file" class="form-control" accept=".csv,.txt">
+                                    <small class="text-muted">Supported: CSV, TXT (max 100 URLs)</small>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-lg w-100">
+                                    <i class="bi bi-files me-2"></i>Analyze URLs
+                                </button>
+                            </form>
+                        </div>
+                        
+                        <!-- Email Scanner Tab -->
+                        <div class="tab-pane fade" id="email-scan">
+                            <form method="POST" action="{{ url_for('email_scanner') }}">
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Sender Email (optional)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                                        <input type="email" name="sender" class="form-control" placeholder="sender@example.com">
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Subject (optional)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-chat-left-text"></i></span>
+                                        <input type="text" name="subject" class="form-control" placeholder="Email subject">
+                                    </div>
+                                </div>
+                                <div class="mb-4">
+                                    <label class="form-label fw-semibold">Email Content</label>
+                                    <textarea name="content" class="form-control" rows="5" placeholder="Paste email body content here..." required></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-lg w-100">
+                                    <i class="bi bi-envelope-check me-2"></i>Scan Email
+                                </button>
+                            </form>
+                            
+                            {% if email_result %}
+                            <div class="result-box {{ 'result-phishing' if email_result.overall_result == 'suspicious' else 'result-safe' }}">
+                                <div class="result-icon">
+                                    <i class="bi {{ 'bi-exclamation-triangle' if email_result.overall_result == 'suspicious' else 'bi-check-circle' }}"></i>
+                                </div>
+                                <h4 class="text-center {{ 'text-danger' if email_result.overall_result == 'suspicious' else 'text-success' }}">
+                                    {{ '⚠️ Suspicious Email!' if email_result.overall_result == 'suspicious' else '✅ Email is Safe' }}
+                                </h4>
+                                <p class="text-center text-muted">
+                                    Found {{ email_result.urls_found }} URLs | {{ email_result.malicious_urls }} malicious
+                                </p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- QR Scanner Tab -->
+                        <div class="tab-pane fade" id="qr-scan">
+                            <form method="POST" action="{{ url_for('qr_scanner') }}" enctype="multipart/form-data">
+                                <div class="upload-zone" id="dropZone">
+                                    <i class="bi bi-qr-code display-4 text-muted mb-3 d-block"></i>
+                                    <p class="mb-2 fw-semibold">Drop QR code image here</p>
+                                    <p class="text-muted small mb-3">or</p>
+                                    <input type="file" name="qr_image" id="qrInput" accept="image/*" style="display: none;">
+                                    <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('qrInput').click()">
+                                        <i class="bi bi-upload me-2"></i>Browse Files
+                                    </button>
+                                    <img id="qrPreview" class="qr-preview" alt="QR Preview">
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-lg w-100 mt-4">
+                                    <i class="bi bi-qr-code-scan me-2"></i>Scan QR Code
+                                </button>
+                            </form>
+                            
+                            {% if qr_result %}
+                            <div class="result-box {{ 'result-phishing' if qr_result.url_result == 'phishing' else 'result-safe' }}">
+                                <div class="result-icon">
+                                    <i class="bi {{ 'bi-exclamation-triangle' if qr_result.url_result == 'phishing' else 'bi-check-circle' }}"></i>
+                                </div>
+                                <h4 class="text-center {{ 'text-danger' if qr_result.url_result == 'phishing' else 'text-success' }}">
+                                    {{ '⚠️ Risky QR Code!' if qr_result.url_result == 'phishing' else '✅ QR Code is Safe' }}
+                                </h4>
+                                <p class="text-center small text-muted mb-2">Decoded: <code>{{ qr_result.qr_data[:50] }}...</code></p>
+                                {% if qr_result.confidence %}
+                                <p class="text-center text-muted">Confidence: <strong>{{ "%.1f"|format(qr_result.confidence) }}%</strong></p>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Tips -->
+            <div class="card mt-4 border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="mb-3"><i class="bi bi-lightbulb text-warning me-2"></i>Quick Tips</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Check for misspellings in domain</li>
+                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Look for HTTPS (not just HTTP)</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Be wary of urgent requests</li>
+                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Verify sender email addresses</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        alert('URL copied to clipboard!');
+    });
+}
+
+document.getElementById('qrInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('qrPreview').src = e.target.result;
+            document.getElementById('qrPreview').classList.add('show');
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+});
+dropZone.addEventListener('dragleave', function(e) {
+    dropZone.classList.remove('dragover');
+});
+dropZone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+        document.getElementById('qrInput').files = e.dataTransfer.files;
+        const event = new Event('change');
+        document.getElementById('qrInput').dispatchEvent(event);
+    }
+});
+</script>
+{% endblock %}

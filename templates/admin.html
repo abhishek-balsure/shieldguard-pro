@@ -1,0 +1,555 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Panel - ShieldGuard Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .admin-container {
+        display: flex;
+        min-height: calc(100vh - 72px);
+        background: var(--ivory);
+    }
+
+    .admin-sidebar {
+        width: 240px;
+        flex-shrink: 0;
+        background: var(--white);
+        border-right: 1px solid var(--border-color);
+        padding: 1.5rem 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .admin-sidebar h6 {
+        color: var(--text-muted);
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 0 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .admin-content {
+        flex-grow: 1;
+        padding: 2rem;
+        overflow-y: auto;
+        background: var(--ivory);
+    }
+
+    .admin-nav .nav-link {
+        border: none;
+        color: var(--text-secondary) !important;
+        background: transparent;
+        border-radius: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        text-align: left;
+        width: 100%;
+        padding: 0.75rem 1.5rem !important;
+        border-left: 3px solid transparent;
+        transition: all 0.2s;
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+
+    .admin-nav .nav-link:hover {
+        background: var(--accent-light);
+        color: var(--accent) !important;
+    }
+
+    .admin-nav .nav-link.active {
+        background: var(--accent-light);
+        color: var(--accent) !important;
+        border-left-color: var(--accent);
+    }
+
+    .admin-nav .nav-link i {
+        width: 20px;
+    }
+
+    .stat-card-admin {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        transition: all 0.2s;
+    }
+
+    .stat-card-admin:hover {
+        border-color: var(--accent);
+        box-shadow: var(--shadow-md);
+    }
+
+    .stat-card-admin .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+
+    .stat-card-admin .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-main);
+        line-height: 1.2;
+    }
+
+    .stat-card-admin .stat-label {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-top: 0.25rem;
+    }
+
+    .user-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-sm);
+        background: linear-gradient(135deg, var(--accent), var(--success));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.75rem;
+        color: white;
+    }
+
+    .quick-stat {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+    }
+
+    .quick-stat .icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+    }
+
+    .progress-thin {
+        height: 6px;
+        border-radius: 3px;
+        background: var(--border-color);
+        overflow: hidden;
+    }
+
+    /* Responsive */
+    @media (max-width: 992px) {
+        .admin-container { flex-direction: column; }
+        .admin-sidebar { 
+            width: 100%; 
+            border-right: none; 
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 0;
+        }
+        .admin-nav { 
+            flex-direction: row !important; 
+            overflow-x: auto;
+            padding: 0 1rem;
+        }
+        .admin-nav .nav-link { 
+            white-space: nowrap; 
+            padding: 0.5rem 1rem !important;
+            border-left: none;
+            border-bottom: 3px solid transparent;
+        }
+        .admin-nav .nav-link.active { border-bottom-color: var(--accent); }
+    }
+
+    @media (max-width: 768px) {
+        .admin-content { padding: 1rem; }
+        .admin-sidebar h6 { padding: 0 1rem; }
+        .stat-card-admin { padding: 1rem; }
+        .stat-card-admin .stat-value { font-size: 1.5rem; }
+        .table-responsive { font-size: 0.85rem; }
+        .glass-card .card-body { padding: 1rem; }
+        .admin-stats-grid { grid-template-columns: 1fr 1fr; }
+        .admin-users-table { overflow-x: auto; }
+        .admin-sidebar h6 { display: none; }
+        .admin-sidebar > .nav { flex-direction: row !important; overflow-x: auto; padding: 0.5rem; gap: 5px; }
+        .admin-sidebar > .nav .nav-link { white-space: nowrap; border: none !important; border-radius: 8px; }
+        .admin-sidebar > .mt-auto { display: flex; flex-direction: row; gap: 10px; }
+        .admin-sidebar > .mt-auto .nav-link { white-space: nowrap; padding: 8px 12px !important; }
+    }
+
+    @media (max-width: 576px) {
+        .profile-avatar-large { width: 80px; height: 80px; font-size: 2rem; }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+        .badge { font-size: 0.7rem; }
+        .table { font-size: 0.75rem; }
+        .admin-stats-grid { grid-template-columns: 1fr; }
+        .admin-container { display: block; }
+        .admin-sidebar { padding: 10px; }
+        .admin-content { padding: 10px; }
+        .stat-card-admin { padding: 12px; }
+        .stat-card-admin .stat-icon { width: 40px; height: 40px; font-size: 1rem; }
+        .stat-card-admin .stat-value { font-size: 1.25rem; }
+        .admin-sidebar h6 { display: none; }
+        .admin-sidebar > .nav { padding: 5px; gap: 3px; }
+        .admin-sidebar > .nav .nav-link { padding: 8px 10px !important; font-size: 0.75rem; }
+        .admin-sidebar > .nav .nav-link i { margin-right: 4px; }
+        .admin-sidebar > .mt-auto { flex-direction: row; gap: 5px; }
+        .admin-sidebar > .mt-auto .nav-link { padding: 8px 10px !important; font-size: 0.75rem; }
+        .admin-sidebar > .mt-auto .nav-link i { margin-right: 4px; }
+        .glass-card { border-radius: 12px; margin-bottom: 15px; }
+        .card-header { padding: 12px 15px; flex-direction: column; gap: 10px; align-items: flex-start !important; }
+        .table thead { display: none; }
+        .table, .table tbody, .table tr, .table td { display: block; width: 100%; }
+        .table tr { margin-bottom: 10px; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; }
+        .table td { padding: 8px 5px; border: none; text-align: left; }
+        .table td::before { content: attr(data-label); font-weight: bold; display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <!-- Admin Sidebar -->
+    <aside class="admin-sidebar">
+        <h6>Management</h6>
+        <nav class="nav flex-column admin-nav">
+            <a class="nav-link active" data-bs-toggle="tab" href="#dashboard">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+            <a class="nav-link" data-bs-toggle="tab" href="#users">
+                <i class="bi bi-people"></i> Users
+            </a>
+            <a class="nav-link" data-bs-toggle="tab" href="#scans">
+                <i class="bi bi-search"></i> Scans
+            </a>
+            <a class="nav-link" data-bs-toggle="tab" href="#stats">
+                <i class="bi bi-bar-chart"></i> Statistics
+            </a>
+        </nav>
+
+        <div class="mt-auto pt-3 border-top">
+            <a href="{{ url_for('index') }}" class="nav-link">
+                <i class="bi bi-house"></i> Main Site
+            </a>
+            <a href="{{ url_for('logout') }}" class="nav-link text-danger">
+                <i class="bi bi-box-arrow-right"></i> Logout
+            </a>
+        </div>
+    </aside>
+
+    <!-- Admin Content -->
+    <main class="admin-content">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h4 class="fw-bold mb-1">System Dashboard</h4>
+                <p class="text-muted small mb-0">Monitor platform activity and manage users</p>
+            </div>
+        </div>
+
+        <div class="tab-content">
+            <!-- Dashboard Tab -->
+            <div class="tab-pane fade show active" id="dashboard">
+                <!-- Stats Row -->
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-lg-3">
+                        <div class="stat-card-admin">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="stat-icon" style="background: #dbeafe; color: #3b82f6;">
+                                    <i class="bi bi-people"></i>
+                                </div>
+                                <div>
+                                    <div class="stat-value">{{ total_users }}</div>
+                                    <div class="stat-label">Total Users</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="stat-card-admin">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="stat-icon" style="background: #dcfce7; color: #22c55e;">
+                                    <i class="bi bi-search"></i>
+                                </div>
+                                <div>
+                                    <div class="stat-value">{{ total_scans }}</div>
+                                    <div class="stat-label">Total Scans</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="stat-card-admin">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="stat-icon" style="background: #fee2e2; color: #ef4444;">
+                                    <i class="bi bi-shield-exclamation"></i>
+                                </div>
+                                <div>
+                                    <div class="stat-value">{{ total_phishing }}</div>
+                                    <div class="stat-label">Phishing Detected</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="stat-card-admin">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="stat-icon" style="background: #dcfce7; color: #22c55e;">
+                                    <i class="bi bi-shield-check"></i>
+                                </div>
+                                <div>
+                                    <div class="stat-value">{{ total_legitimate }}</div>
+                                    <div class="stat-label">Safe URLs</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Stats & Recent -->
+                <div class="row g-4">
+                    <!-- Recent Scans -->
+                    <div class="col-lg-8">
+                        <div class="glass-card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Scans</h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>User</th>
+                                            <th>URL</th>
+                                            <th>Result</th>
+                                            <th>Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for scan in recent_scans[:6] %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <div class="user-avatar">{{ scan.username[0]|upper }}</div>
+                                                    <span class="small">{{ scan.username }}</span>
+                                                </div>
+                                            </td>
+                                            <td><code class="small">{{ scan.url[:30] }}...</code></td>
+                                            <td>
+                                                {% if scan.result == 'phishing' %}
+                                                <span class="badge bg-danger">Phishing</span>
+                                                {% else %}
+                                                <span class="badge bg-success">Safe</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-muted small">{{ scan.created_at[:10] }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Stats -->
+                    <div class="col-lg-4">
+                        <div class="glass-card mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Detection Rate</h6>
+                            </div>
+                            <div class="card-body">
+                                {% if total_scans > 0 %}
+                                <div class="text-center mb-3">
+                                    <div class="h3 fw-bold text-danger">{{ "%.1f"|format((total_phishing/total_scans*100)) }}%</div>
+                                    <small class="text-muted">Phishing Detection</small>
+                                </div>
+                                <div class="progress-thin mb-2">
+                                    <div class="progress-bar bg-danger" style="width: {{ (total_phishing/total_scans*100) }}%"></div>
+                                </div>
+                                <div class="d-flex justify-content-between small text-muted">
+                                    <span>Phishing: {{ total_phishing }}</span>
+                                    <span>Safe: {{ total_legitimate }}</span>
+                                </div>
+                                {% else %}
+                                <p class="text-muted text-center mb-0">No data yet</p>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="glass-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-lightning me-2"></i>Today's Activity</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">New Users</span>
+                                    <span class="fw-bold">{{ new_users_today }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Scans Today</span>
+                                    <span class="fw-bold">{{ scans_today }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users Tab -->
+            <div class="tab-pane fade" id="users">
+                <div class="glass-card">
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h6 class="mb-0"><i class="bi bi-people me-2"></i>All Users ({{ users|length }})</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Scans</th>
+                                    <th>Joined</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td data-label="User">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="user-avatar">{{ user.username[0]|upper }}</div>
+                                            <span>{{ user.username }}</span>
+                                        </div>
+                                    </td>
+                                    <td data-label="Email" class="text-muted">{{ user.email }}</td>
+                                    <td data-label="Role">
+                                        {% if user.is_admin %}
+                                        <span class="badge bg-primary">Admin</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">User</span>
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Scans">{{ user.scan_count or 0 }}</td>
+                                    <td data-label="Joined" class="text-muted">{{ user.created_at[:10] }}</td>
+                                    <td data-label="Actions">
+                                        <a href="{{ url_for('admin_user_detail', user_id=user.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scans Tab -->
+            <div class="tab-pane fade" id="scans">
+                <div class="glass-card">
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h6 class="mb-0"><i class="bi bi-search me-2"></i>All Scans</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>URL</th>
+                                    <th>Result</th>
+                                    <th>Confidence</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for scan in recent_scans %}
+                                <tr>
+                                    <td data-label="User">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="user-avatar">{{ scan.username[0]|upper }}</div>
+                                            <span>{{ scan.username }}</span>
+                                        </div>
+                                    </td>
+                                    <td data-label="URL"><code class="small">{{ scan.url[:40] }}...</code></td>
+                                    <td data-label="Result">
+                                        {% if scan.result == 'phishing' %}
+                                        <span class="badge bg-danger">Phishing</span>
+                                        {% else %}
+                                        <span class="badge bg-success">Safe</span>
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Confidence">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="progress-thin" style="width: 60px;">
+                                                <div class="progress-bar {{ 'bg-danger' if scan.result == 'phishing' else 'bg-success' }}" 
+                                                     style="width: {{ scan.confidence }}%"></div>
+                                            </div>
+                                            <small>{{ "%.0f"|format(scan.confidence) }}%</small>
+                                        </div>
+                                    </td>
+                                    <td data-label="Date" class="text-muted small">{{ scan.created_at }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics Tab -->
+            <div class="tab-pane fade" id="stats">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="glass-card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Scans Per Day (Last 7 Days)</h6>
+                            </div>
+                            <div class="card-body">
+                                {% if scans_per_day %}
+                                {% for day in scans_per_day %}
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="small">{{ day.date }}</span>
+                                    <span class="badge bg-primary">{{ day.count }} scans</span>
+                                </div>
+                                {% endfor %}
+                                {% else %}
+                                <p class="text-muted text-center mb-0">No data</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="glass-card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Monthly Trends</h6>
+                            </div>
+                            <div class="card-body">
+                                {% if scans_per_month %}
+                                {% for month in scans_per_month %}
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="small">{{ month.month }}</span>
+                                    <span class="badge bg-success">{{ month.count }} scans</span>
+                                </div>
+                                {% endfor %}
+                                {% else %}
+                                <p class="text-muted text-center mb-0">No data</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}Intelligence Log - ShieldGuard Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .history-header {
+        margin-bottom: 2rem;
+    }
+
+    .filter-bar {
+        background: var(--white);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .url-cell {
+        max-width: 400px;
+    }
+
+    .export-btn {
+        padding: 0.5rem 1.25rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: var(--transition);
+    }
+
+    .export-btn-pdf {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .export-btn-csv {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .export-btn:hover {
+        filter: brightness(1.2);
+        transform: translateY(-2px);
+    }
+
+    @media (max-width: 768px) {
+        .container { padding: 15px; }
+        .history-header { flex-direction: column; align-items: flex-start !important; }
+        .history-table { overflow-x: auto; }
+    }
+    @media (max-width: 576px) {
+        h1 { font-size: 1.5rem; }
+        .table { font-size: 0.85rem; }
+        .badge { font-size: 0.7rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- Header -->
+    <div class="history-header d-flex justify-content-between align-items-end flex-wrap gap-4 fade-in">
+        <div>
+            <h1 class="fw-bold mb-1">Intelligence <span class="gradient-text">Log</span></h1>
+            <p class="text-dim mb-0">Compressed historical data of all processed security assets.</p>
+        </div>
+        <div class="d-flex gap-3">
+            <a href="{{ url_for('export_history_pdf') }}" class="export-btn export-btn-pdf">
+                <i class="bi bi-filetype-pdf"></i> Export JSON/PDF
+            </a>
+            <a href="{{ url_for('export_history_csv') }}" class="export-btn export-btn-csv">
+                <i class="bi bi-filetype-csv"></i> Database CSV
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-bar fade-up">
+        <form method="GET" action="{{ url_for('history') }}" class="row g-3">
+            <div class="col-lg-6">
+                <div class="input-group">
+                    <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control bg-transparent border-start-0" name="search"
+                        placeholder="Filter by resource URL..." value="{{ search or '' }}">
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-8">
+                <select class="form-select bg-transparent text-dim" name="filter">
+                    <option value="all" {% if filter_type=='all' %}selected{% endif %}>All Threat Levels</option>
+                    <option value="phishing" {% if filter_type=='phishing' %}selected{% endif %}>Malicious Only</option>
+                    <option value="legitimate" {% if filter_type=='legitimate' %}selected{% endif %}>Verified Clean
+                    </option>
+                </select>
+            </div>
+            <div class="col-lg-2 col-md-4">
+                <button type="submit" class="btn btn-glow w-100">
+                    <i class="bi bi-filter"></i> Apply
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Table -->
+    <div class="glass-card fade-up">
+        {% if scans %}
+        <div class="table-responsive border-0">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-white bg-opacity-5">
+                    <tr>
+                        <th class="ps-4">Neural Scanner Target</th>
+                        <th>Assessment</th>
+                        <th>Confidence</th>
+                        <th>Type</th>
+                        <th class="pe-4">Processed Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for scan in scans %}
+                    <tr>
+                        <td class="ps-4 url-cell">
+                            <code class="text-accent small text-truncate d-block"
+                                title="{{ scan.url }}">{{ scan.url }}</code>
+                        </td>
+                        <td>
+                            {% if scan.result == 'phishing' %}
+                            <span class="badge badge-phishing">Malicious</span>
+                            {% else %}
+                            <span class="badge badge-safe">Legitimate</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="progress w-100" style="height: 6px;">
+                                    <div class="progress-bar-glow {{ 'bg-danger' if scan.result == 'phishing' else 'bg-success' }}"
+                                        style="width: {{ scan.confidence }}%"></div>
+                                </div>
+                                <span class="small">{{ "%.0f"|format(scan.confidence) }}%</span>
+                            </div>
+                        </td>
+                        <td><span class="badge" style="background: var(--light-blue); color: var(--bright-blue); border: 1px solid var(--border-color);">{{ scan.scan_type or 'Web' }}</span>
+                        </td>
+                        <td class="pe-4 text-dim small">{{ scan.created_at[:10] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if total_pages > 1 %}
+        <div
+            class="p-4 border-top border-secondary border-opacity-10 d-flex justify-content-between align-items-center">
+            <div class="text-dim small">Showing {{ scans|length }} of {{ total }} records</div>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                        <a class="page-link"
+                            href="{{ url_for('history', page=page-1, search=search, filter=filter_type) }}">Prev</a>
+                    </li>
+                    {% for p in range(1, total_pages + 1) %}
+                    {% if p <= 3 or p> total_pages - 3 or (p >= page - 1 and p <= page + 1) %} <li
+                            class="page-item {% if p == page %}active{% endif %}">
+                            <a class="page-link"
+                                href="{{ url_for('history', page=p, search=search, filter=filter_type) }}">{{ p }}</a>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+                            <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                                <a class="page-link"
+                                    href="{{ url_for('history', page=page+1, search=search, filter=filter_type) }}">Next</a>
+                            </li>
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-database-exclamation display-1 text-dim opacity-20 mb-3"></i>
+            <h5 class="text-dim">No Intelligence Found</h5>
+            <p class="text-muted small">No scan history matches your current parameters.</p>
+            <a href="{{ url_for('check_url') }}" class="btn btn-glow btn-sm px-4">Initialize New Scan</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

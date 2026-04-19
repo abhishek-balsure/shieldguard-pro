@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Neural Profile - ShieldGuard Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-hero {
+        padding: 3rem;
+        background: var(--white);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-xl);
+        margin-bottom: 2rem;
+    }
+
+    .profile-avatar-large {
+        width: 100px;
+        height: 100px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, var(--bright-blue), var(--green));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        color: white;
+        margin-bottom: 1rem;
+        box-shadow: 0 10px 30px rgba(0, 171, 228, 0.3);
+    }
+
+    .settings-nav .nav-link {
+        color: var(--text-dim);
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 0.5rem;
+        transition: var(--transition);
+        border: 1px solid transparent;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .settings-nav .nav-link:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-main);
+    }
+
+    .settings-nav .nav-link.active {
+        background: rgba(99, 102, 241, 0.1);
+        color: var(--accent);
+        border-color: rgba(99, 102, 241, 0.2);
+    }
+
+    .stat-mini-box {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 1.25rem;
+        text-align: center;
+    }
+
+    /* Responsive */
+    @media (max-width: 992px) {
+        .profile-hero { padding: 2rem 1.5rem; }
+        .settings-nav { 
+            flex-direction: row !important; 
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+        }
+        .settings-nav .nav-link { 
+            white-space: nowrap; 
+            padding: 0.75rem 1rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .profile-hero { padding: 1.5rem; text-align: center; }
+        .profile-avatar-large { 
+            width: 80px; height: 80px; font-size: 2.5rem; 
+            margin: 0 auto 1rem;
+        }
+        .profile-hero .d-flex { justify-content: center; }
+        .col-lg-4 { margin-top: 1.5rem; }
+    }
+
+    @media (max-width: 576px) {
+        .profile-hero { padding: 1.25rem; border-radius: var(--radius-lg); }
+        .profile-avatar-large { width: 70px; height: 70px; font-size: 2rem; }
+        h2 { font-size: 1.5rem; }
+        .btn { padding: 0.6rem 1rem; font-size: 0.85rem; }
+        .badge { font-size: 0.7rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- Hero Section -->
+    <div class="profile-hero fade-in">
+        <div class="container">
+            <div class="row align-items-center">
+                <div
+                    class="col-lg-6 text-center text-lg-start d-flex flex-column align-items-center align-items-lg-start">
+                    <div class="profile-avatar-large">
+                        {{ user.username[0]|upper }}
+                    </div>
+                    <h2 class="fw-bold mb-1">{{ user.username }}</h2>
+                    <p class="text-dim mb-4">{{ user.email }}</p>
+                    <div class="d-flex gap-2">
+                        {% if user.is_admin %}
+                        <span class="badge bg-warning text-dark px-3 mt-1">System Admin</span>
+                        {% endif %}
+                        <span class="badge bg-white bg-opacity-10 px-3 mt-1 text-dim">Verified Node</span>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="row g-3 mt-4 mt-lg-0">
+                        <div class="col-4">
+                            <div class="stat-mini-box">
+                                <div class="h4 fw-bold gradient-text mb-0">{{ stats.total_scans }}</div>
+                                <div class="smaller text-dim uppercase">Total</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-mini-box">
+                                <div class="h4 fw-bold text-danger mb-0">{{ stats.phishing_count }}</div>
+                                <div class="smaller text-dim uppercase">Threats</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-mini-box">
+                                <div class="h4 fw-bold text-success mb-0">{{ stats.safe_count }}</div>
+                                <div class="smaller text-dim uppercase">Clean</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-5">
+        <div class="col-lg-3">
+            <div class="nav flex-column settings-nav fade-up">
+                <a class="nav-link active" data-bs-toggle="tab" href="#p-settings"><i class="bi bi-person"></i>
+                    Identity</a>
+                <a class="nav-link" data-bs-toggle="tab" href="#p-security"><i class="bi bi-shield-lock"></i>
+                    Security</a>
+                <a class="nav-link" data-bs-toggle="tab" href="#p-activity"><i class="bi bi-graph-up"></i> Activity
+                    Log</a>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            <div class="tab-content fade-up">
+                <!-- Identity Settings -->
+                <div class="tab-pane fade show active" id="p-settings">
+                    <div class="glass-card p-4 p-lg-5">
+                        <h5 class="fw-bold mb-4">Neural Identity Settings</h5>
+                        <form method="POST">
+                            <input type="hidden" name="action" value="update_profile">
+                            <div class="row g-4 mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label small uppercase tracking-wider text-dim">Public
+                                        Username</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                                        <input type="text" name="username" class="form-control"
+                                            value="{{ user.username }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small uppercase tracking-wider text-dim">Secure
+                                        Email</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                                        <input type="email" name="email" class="form-control" value="{{ user.email }}">
+                                    </div>
+                                </div>
+                            </div>
+                            <hr class="border-secondary border-opacity-10 my-4">
+                            <button type="submit" class="btn btn-glow px-5">Save Configuration</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Security Settings -->
+                <div class="tab-pane fade" id="p-security">
+                    <div class="glass-card p-4 p-lg-5 mb-4">
+                        <h5 class="fw-bold mb-4">Access Credentials</h5>
+                        <form method="POST">
+                            <input type="hidden" name="action" value="change_password">
+                            <div class="mb-4">
+                                <label class="form-label small uppercase tracking-wider text-dim">Legacy
+                                    Password</label>
+                                <input type="password" name="current_password" class="form-control"
+                                    placeholder="••••••••">
+                            </div>
+                            <div class="row g-4 mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label small uppercase tracking-wider text-dim">New
+                                        CyberKey</label>
+                                    <input type="password" name="new_password" class="form-control"
+                                        placeholder="••••••••">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small uppercase tracking-wider text-dim">Verify Key</label>
+                                    <input type="password" name="confirm_password" class="form-control"
+                                        placeholder="••••••••">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-outline-primary px-5">Update Security Level</button>
+                        </form>
+                    </div>
+
+                    <div class="glass-card p-4 p-lg-5 border-danger border-opacity-20 bg-danger bg-opacity-5">
+                        <h6 class="text-danger fw-bold mb-2">Nuclear Protocol</h6>
+                        <p class="small text-dim mb-4">Eliminating your node will permanently purge all historical
+                            intelligence scan records.</p>
+                        <button class="btn btn-danger-glow btn-sm px-4">Purge Node Identity</button>
+                    </div>
+                </div>
+
+                <!-- Activity Log -->
+                <div class="tab-pane fade" id="p-activity">
+                    <div class="glass-card p-4">
+                        <h5 class="fw-bold mb-4">Recent Neural Activity</h5>
+                        {% if recent_scans %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <tbody>
+                                    {% for scan in recent_scans %}
+                                    <tr>
+                                        <td style="width: 12px;">
+                                            <div class="rounded-circle bg-{{ 'danger' if scan.result == 'phishing' else 'success' }}"
+                                                style="width: 8px; height: 8px;"></div>
+                                        </td>
+                                        <td>
+                                            <code class="text-accent smaller d-block text-truncate"
+                                                style="max-width: 400px;">{{ scan.url }}</code>
+                                        </td>
+                                        <td class="text-end text-dim smaller">{{ scan.created_at[:10] }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-center text-dim py-5">No activity detected.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

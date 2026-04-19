@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Email Guardian - ShieldGuard Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .scanner-form-card {
+        padding: 3rem;
+        margin-bottom: 3rem;
+    }
+
+    .email-textarea {
+        background: rgba(255, 255, 255, 0.03) !important;
+        border: 1px solid var(--glass-border) !important;
+        color: var(--text-main) !important;
+        border-radius: var(--radius-lg) !important;
+        padding: 1.5rem !important;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.9rem;
+    }
+
+    .email-textarea:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1) !important;
+    }
+
+    .url-result-pill {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-md);
+        padding: 1rem 1.5rem;
+        margin-bottom: 1rem;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .url-result-pill:hover {
+        border-color: var(--accent);
+        background: rgba(15, 23, 42, 0.8);
+    }
+
+    .url-result-pill.phishing {
+        border-left: 4px solid var(--danger);
+    }
+
+    .url-result-pill.safe {
+        border-left: 4px solid var(--success);
+    }
+
+    @media (max-width: 768px) {
+        .container { padding: 15px; }
+    }
+    @media (max-width: 576px) {
+        h1 { font-size: 1.5rem; }
+        .url-result-pill { padding: 10px; font-size: 0.9rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="max-width-900 mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-5 fade-in">
+            <div class="icon-box-sm mx-auto mb-3" style="width: 64px; height: 64px; font-size: 2rem;">
+                <i class="bi bi-envelope-at text-accent"></i>
+            </div>
+            <h1 class="fw-bold">Email <span class="gradient-text">Guardian</span></h1>
+            <p class="text-dim">Our AI extracts and analyzes links within your emails to neutralize phishing attempts.
+            </p>
+        </div>
+
+        <!-- Form -->
+        <div class="glass-card scanner-form-card fade-up">
+            <form method="POST" action="{{ url_for('email_scanner') }}">
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label small uppercase tracking-wider text-dim">Sender Header</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-person"></i></span>
+                            <input type="email" class="form-control" name="sender" placeholder="support@paypal-sec.com">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small uppercase tracking-wider text-dim">Subject Line</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-type"></i></span>
+                            <input type="text" class="form-control" name="subject" placeholder="Urgent: Account locked">
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small uppercase tracking-wider text-dim">Email Content</label>
+                        <textarea class="form-control email-textarea" name="content" rows="8" required
+                            placeholder="Paste the suspicious email content here..."></textarea>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-glow w-100 py-3">
+                    <i class="bi bi-shield-lock me-2"></i>Analyze Intelligence
+                </button>
+            </form>
+        </div>
+
+        {% if result %}
+        <!-- Results -->
+        <div class="fade-up">
+            <div class="row g-4 mb-5">
+                <div class="col-md-4">
+                    <div class="stat-widget text-center p-4">
+                        <div class="h2 fw-bold mb-0 text-accent">{{ result.urls_found }}</div>
+                        <div class="small text-muted uppercase">Links Detected</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-widget text-center p-4">
+                        <div class="h2 fw-bold mb-0 text-danger">{{ result.malicious_urls }}</div>
+                        <div class="small text-muted uppercase">Threats Identified</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-widget text-center p-4">
+                        <div class="h2 fw-bold mb-0 text-success">{{ result.urls_found - result.malicious_urls }}</div>
+                        <div class="small text-muted uppercase">Verified Safe</div>
+                    </div>
+                </div>
+            </div>
+
+            {% if result.url_results %}
+            <h5 class="mb-4">Link Assessment <span class="text-dim small fw-normal ms-2">({{ result.url_results|length
+                    }} items)</span></h5>
+            <div class="mb-5">
+                {% for url_item in result.url_results %}
+                <div class="url-result-pill {% if url_item.result == 'phishing' %}phishing{% else %}safe{% endif %}">
+                    <div class="overflow-hidden">
+                        <code class="text-accent small text-truncate d-block">{{ url_item.url }}</code>
+                    </div>
+                    <div class="text-end flex-shrink-0">
+                        {% if url_item.result == 'phishing' %}
+                        <span class="badge badge-phishing">THREAT</span>
+                        {% else %}
+                        <span class="badge badge-safe">SAFE</span>
+                        {% endif %}
+                        <div class="text-dim smaller mt-1">{{ "%.0f"|format(url_item.confidence) }}% Conf.</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div
+                class="glass-card p-4 {% if result.overall_result == 'suspicious' %}border-danger{% else %}border-success{% endif %} bg-opacity-10">
+                <div class="d-flex align-items-center gap-3">
+                    <div
+                        class="icon-box-sm {% if result.overall_result == 'suspicious' %}text-danger{% else %}text-success{% endif %}">
+                        <i
+                            class="bi {% if result.overall_result == 'suspicious' %}bi-shield-exclamation{% else %}bi-shield-check{% endif %}"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-1">Security Recommendation</h6>
+                        <p class="text-dim small mb-0">
+                            {% if result.overall_result == 'suspicious' %}
+                            <strong>High Risk:</strong> We've detected malicious links. Neutralize the threat by
+                            deleting this email immediately.
+                            {% else %}
+                            <strong>Safe:</strong> No malicious patterns detected. Still, remain vigilant about
+                            unexpected attachments.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

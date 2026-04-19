@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+
+{% block title %}{{ user.username }} - User Details - ShieldGuard Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .user-profile-header {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        padding: 60px 0 40px;
+        margin-bottom: -30px;
+    }
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        color: white;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+    .stat-mini-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        transition: transform 0.3s;
+    }
+    .stat-mini-card:hover {
+        transform: translateY(-5px);
+    }
+    .history-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        overflow: hidden;
+    }
+    .history-card .card-header {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        color: white;
+        border: none;
+        padding: 15px 20px;
+    }
+    .scan-item {
+        padding: 15px;
+        border-bottom: 1px solid #f0f0f0;
+        transition: background 0.3s;
+    }
+    .scan-item:hover {
+        background: #f8f9fa;
+    }
+    .scan-item:last-child {
+        border-bottom: none;
+    }
+    .result-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .result-phishing {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+        color: white;
+    }
+    .result-legitimate {
+        background: linear-gradient(135deg, #51cf66 0%, #40c057 100%);
+        color: white;
+    }
+    .confidence-bar {
+        height: 6px;
+        border-radius: 3px;
+        background: #e9ecef;
+        overflow: hidden;
+    }
+    .confidence-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.5s;
+    }
+    .type-badge {
+        background: #e9ecef;
+        color: #495057;
+        padding: 4px 10px;
+        border-radius: 10px;
+        font-size: 0.7rem;
+    }
+    .back-btn {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        color: white;
+    }
+    .back-btn:hover {
+        background: rgba(255,255,255,0.2);
+        color: white;
+    }
+    .action-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s;
+    }
+    .action-btn:hover {
+        transform: scale(1.1);
+    }
+    .empty-state {
+        padding: 60px 20px;
+        text-align: center;
+    }
+    .empty-state i {
+        font-size: 4rem;
+        color: #dee2e6;
+    }
+    .info-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+    }
+    .info-card .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 15px 15px 0 0 !important;
+    }
+    .email-badge {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+    }
+
+    @media (max-width: 768px) {
+        .container { padding: 15px; }
+        .user-profile-header { padding: 20px 0; }
+        .profile-avatar { width: 80px; height: 80px; font-size: 2rem; }
+        .user-scans-table { overflow-x: auto; }
+    }
+    @media (max-width: 576px) {
+        h1 { font-size: 1.5rem; }
+        .table { font-size: 0.8rem; }
+        .btn { padding: 0.4rem 0.75rem; font-size: 0.8rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- User Profile Header -->
+<div class="user-profile-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <a href="{{ url_for('admin') }}" class="btn back-btn btn-sm mb-3">
+                    <i class="bi bi-arrow-left"></i> Back to Admin
+                </a>
+                <div class="d-flex align-items-center">
+                    <div class="profile-avatar me-4">
+                        {{ user.username[0]|upper }}
+                    </div>
+                    <div>
+                        <h1 class="text-white mb-1">{{ user.username }}</h1>
+                        <span class="email-badge">
+                            <i class="bi bi-envelope me-2"></i>{{ user.email }}
+                        </span>
+                        {% if user.is_admin %}
+                        <span class="badge bg-warning ms-2">Admin</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                {% if user.id != session.user_id %}
+                <div class="d-inline-flex gap-2">
+                    <form action="{{ url_for('admin_toggle_admin', user_id=user.id) }}" method="POST">
+                        <button type="submit" class="btn btn-warning action-btn" 
+                                onclick="return confirm('Toggle admin status for {{ user.username }}?')"
+                                title="Toggle Admin">
+                            <i class="bi bi-shield{% if user.is_admin %}-slash{% endif %}"></i>
+                        </button>
+                    </form>
+                    <form action="{{ url_for('admin_delete_user', user_id=user.id) }}" method="POST">
+                        <button type="submit" class="btn btn-danger action-btn"
+                                onclick="return confirm('DELETE user {{ user.username }}? This cannot be undone!')"
+                                title="Delete User">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
+                {% else %}
+                <span class="badge bg-light text-dark"><i class="bi bi-person"></i> Current User</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Stats Row -->
+        <div class="row mt-4">
+            <div class="col-md-3">
+                <div class="stat-mini-card">
+                    <i class="bi bi-search text-primary fs-2"></i>
+                    <h3 class="mb-0 mt-2">{{ stats.total_scans }}</h3>
+                    <small class="text-muted">Total Scans</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-mini-card">
+                    <i class="bi bi-shield-exclamation text-danger fs-2"></i>
+                    <h3 class="mb-0 mt-2">{{ stats.phishing_count }}</h3>
+                    <small class="text-muted">Phishing Detected</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-mini-card">
+                    <i class="bi bi-shield-check text-success fs-2"></i>
+                    <h3 class="mb-0 mt-2">{{ stats.safe_count }}</h3>
+                    <small class="text-muted">Safe URLs</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-mini-card">
+                    <i class="bi bi-calendar text-info fs-2"></i>
+                    <h3 class="mb-0 mt-2">{{ user.created_at[:10] }}</h3>
+                    <small class="text-muted">Joined</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container mt-4">
+    <div class="row">
+        <!-- User Information -->
+        <div class="col-lg-4 mb-4">
+            <div class="info-card card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-person-badge"></i> User Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="text-muted small">User ID</label>
+                        <p class="mb-0 fw-bold">#{{ user.id }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted small">Username</label>
+                        <p class="mb-0 fw-bold">{{ user.username }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted small">Email</label>
+                        <p class="mb-0">{{ user.email }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted small">Role</label>
+                        <p class="mb-0">
+                            {% if user.is_admin %}
+                            <span class="badge bg-warning">Administrator</span>
+                            {% else %}
+                            <span class="badge bg-secondary">User</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted small">Joined</label>
+                        <p class="mb-0">{{ user.created_at }}</p>
+                    </div>
+                    {% if user.last_login %}
+                    <div class="mb-0">
+                        <label class="text-muted small">Last Login</label>
+                        <p class="mb-0">{{ user.last_login }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Scan History -->
+        <div class="col-lg-8 mb-4">
+            <div class="history-card card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> Scan History</h5>
+                    <span class="badge bg-light text-dark">{{ scans|length }} scans</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if scans %}
+                    <div class="scan-history-list">
+                        {% for scan in scans %}
+                        <div class="scan-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="result-badge {{ 'result-phishing' if scan.result == 'phishing' else 'result-legitimate' }}">
+                                            <i class="bi {{ 'bi-exclamation-triangle' if scan.result == 'phishing' else 'bi-check-circle' }}"></i>
+                                            {{ scan.result|title }}
+                                        </span>
+                                        <span class="type-badge ms-2">{{ scan.scan_type or 'single' }}</span>
+                                        <small class="text-muted ms-auto">{{ scan.created_at }}</small>
+                                    </div>
+                                    <code class="d-block text-break" style="font-size: 0.85rem;">{{ scan.url }}</code>
+                                </div>
+                                <div class="ms-3 text-end" style="min-width: 80px;">
+                                    <div class="fw-bold {{ 'text-danger' if scan.result == 'phishing' else 'text-success' }}">
+                                        {{ "%.0f"|format(scan.confidence) }}%
+                                    </div>
+                                    <small class="text-muted">Confidence</small>
+                                </div>
+                            </div>
+                            <div class="confidence-bar mt-2">
+                                <div class="confidence-fill {{ 'bg-danger' if scan.result == 'phishing' else 'bg-success' }}"
+                                     style="width: {{ scan.confidence }}%"></div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="bi bi-inbox"></i>
+                        <h5 class="mt-3">No Scans Yet</h5>
+                        <p class="text-muted">This user hasn't performed any scans yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

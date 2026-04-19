@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - ShieldGuard Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-hero {
+        padding: 1.5rem;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        margin-bottom: 1.5rem;
+    }
+
+    .action-grid-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1.25rem;
+        text-decoration: none;
+        color: var(--text-main);
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        transition: all 0.2s;
+    }
+
+    .action-grid-card:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .action-grid-card i {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        color: var(--accent);
+    }
+
+    .action-grid-card h6 {
+        margin: 0;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Welcome Section -->
+    <div class="dashboard-hero">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h4 class="fw-bold mb-1">Welcome Back, <span class="gradient-text">{{ session.username }}</span></h4>
+                <p class="text-muted small mb-0">You have scanned {{ stats.total_scans or 0 }} items total.</p>
+            </div>
+            <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                <a href="{{ url_for('check_url') }}" class="btn btn-glow">
+                    <i class="bi bi-shield-check me-2"></i>New Scan
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Tools Grid -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <a href="{{ url_for('check_url') }}" class="action-grid-card">
+                <i class="bi bi-link-45deg"></i>
+                <h6>URL Scanner</h6>
+            </a>
+        </div>
+        <div class="col-6 col-lg-3">
+            <a href="{{ url_for('email_scanner') }}" class="action-grid-card">
+                <i class="bi bi-envelope"></i>
+                <h6>Email Scanner</h6>
+            </a>
+        </div>
+        <div class="col-6 col-lg-3">
+            <a href="{{ url_for('qr_scanner') }}" class="action-grid-card">
+                <i class="bi bi-qr-code"></i>
+                <h6>QR Scanner</h6>
+            </a>
+        </div>
+        <div class="col-6 col-lg-3">
+            <a href="{{ url_for('batch_check') }}" class="action-grid-card">
+                <i class="bi bi-collection"></i>
+                <h6>Batch Check</h6>
+            </a>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="glass-card p-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width: 44px; height: 44px; background: #dcfce7; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #22c55e;">
+                        <i class="bi bi-shield-check fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="h4 fw-bold mb-0">{{ stats.safe_count or 0 }}</div>
+                        <small class="text-muted">Safe URLs</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="glass-card p-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width: 44px; height: 44px; background: #fee2e2; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #ef4444;">
+                        <i class="bi bi-shield-exclamation fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="h4 fw-bold mb-0">{{ stats.phishing_count or 0 }}</div>
+                        <small class="text-muted">Phishing</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="glass-card p-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width: 44px; height: 44px; background: #dbeafe; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #3b82f6;">
+                        <i class="bi bi-search fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="h4 fw-bold mb-0">{{ stats.total_scans or 0 }}</div>
+                        <small class="text-muted">Total Scans</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="glass-card p-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width: 44px; height: 44px; background: #fef3c7; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #f59e0b;">
+                        <i class="bi bi-bookmark-heart fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="h4 fw-bold mb-0">{{ recent_bookmarks|length }}</div>
+                        <small class="text-muted">Bookmarks</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Scans -->
+    <div class="glass-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Scans</h6>
+            <a href="{{ url_for('history') }}" class="btn btn-sm btn-outline-primary">View All</a>
+        </div>
+        <div class="card-body p-0">
+            {% if recent_scans %}
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>URL</th>
+                        <th>Result</th>
+                        <th>Confidence</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for scan in recent_scans[:5] %}
+                    <tr>
+                        <td><code class="small">{{ scan.url[:45] }}...</code></td>
+                        <td>
+                            {% if scan.result == 'phishing' %}
+                            <span class="badge bg-danger">Phishing</span>
+                            {% else %}
+                            <span class="badge bg-success">Safe</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="progress" style="width: 50px; height: 6px;">
+                                    <div class="progress-bar {{ 'bg-danger' if scan.result == 'phishing' else 'bg-success' }}" style="width: {{ scan.confidence }}%"></div>
+                                </div>
+                                <small>{{ "%.0f"|format(scan.confidence) }}%</small>
+                            </div>
+                        </td>
+                        <td class="text-muted small">{{ scan.created_at[:10] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="bi bi-inbox text-muted" style="font-size: 2rem;"></i>
+                <p class="text-muted mt-2 mb-0">No scans yet</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block title %}Help Center - ShieldGuard Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .help-sidebar {
+        position: sticky;
+        top: 100px;
+    }
+
+    .help-nav-link {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1.25rem;
+        border-radius: 8px;
+        color: var(--text-dim);
+        text-decoration: none;
+        transition: var(--transition);
+        border: 1px solid transparent;
+    }
+
+    .help-nav-link:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-main);
+    }
+
+    .help-nav-link.active {
+        background: rgba(99, 102, 241, 0.1);
+        color: var(--accent);
+        border-color: rgba(99, 102, 241, 0.2);
+    }
+
+    .help-section {
+        margin-bottom: 5rem;
+    }
+
+    .help-section h2 {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .help-section h2 i {
+        background: var(--primary-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .faq-accordion .accordion-item {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--glass-border);
+        margin-bottom: 1rem;
+        border-radius: 12px !important;
+        overflow: hidden;
+    }
+
+    .faq-accordion .accordion-button {
+        background: transparent;
+        color: var(--text-main);
+        box-shadow: none;
+        padding: 1.25rem;
+    }
+
+    .faq-accordion .accordion-button:not(.collapsed) {
+        border-bottom: 1px solid var(--glass-border);
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .faq-accordion .accordion-body {
+        color: var(--text-dim);
+        padding: 1.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="text-center mb-5 fade-in">
+        <span class="badge badge-glow mb-3">KNOWLEDGE BASE</span>
+        <h1 class="fw-bold">Security <span class="gradient-text">Assistance</span></h1>
+        <p class="text-dim">Everything you need to know about ShieldGuard Pro network defense.</p>
+    </div>
+
+    <div class="row g-5">
+        <div class="col-lg-4 d-none d-lg-block">
+            <div class="help-sidebar fade-up">
+                <nav class="d-flex flex-column gap-2">
+                    <a href="#getting-started" class="help-nav-link active">
+                        <i class="bi bi-play-circle"></i> Getting Started
+                    </a>
+                    <a href="#scanning" class="help-nav-link">
+                        <i class="bi bi-shield-radar"></i> Scanning Logic
+                    </a>
+                    <a href="#results" class="help-nav-link">
+                        <i class="bi bi-bar-chart"></i> Indicators
+                    </a>
+                    <a href="#faq" class="help-nav-link">
+                        <i class="bi bi-chat-dots"></i> Core FAQ
+                    </a>
+                </nav>
+
+                <div class="glass-card p-4 mt-4">
+                    <h6 class="fw-bold mb-3">Still need help?</h6>
+                    <p class="small text-dim mb-4">Our support engineers are available for enterprise inquiries.</p>
+                    <button class="btn btn-outline-primary btn-sm w-100">Contact Security</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <!-- Getting Started -->
+            <section id="getting-started" class="help-section fade-up">
+                <h2><i class="bi bi-play-circle-fill"></i> Protocol Initialize</h2>
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="glass-card p-4 h-100">
+                            <h6 class="fw-bold mb-2">1. Identity Verification</h6>
+                            <p class="small text-dim mb-0">Establish your neural profile to unlock history tracking and
+                                bulk processing capabilities.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="glass-card p-4 h-100">
+                            <h6 class="fw-bold mb-2">2. Resource Selection</h6>
+                            <p class="small text-dim mb-0">Choose between URL, Email, or QR scan vectors based on the
+                                suspicious asset.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Scanning Logic -->
+            <section id="scanning" class="help-section fade-up">
+                <h2><i class="bi bi-cpu-fill"></i> Scanning Logic</h2>
+                <div class="glass-card p-4">
+                    <h6 class="fw-bold mb-3">The Analysis Triad</h6>
+                    <p class="text-dim small mb-4">Our system uses a three-layered approach to verify every resource:
+                    </p>
+                    <div class="row g-3">
+                        <div class="col-md-4 text-center p-3 border-end border-secondary border-opacity-10">
+                            <div class="text-accent h5 mb-2">Lexical</div>
+                            <p class="smaller text-muted">Analysis of URL path, entropy, and domain characters.</p>
+                        </div>
+                        <div class="col-md-4 text-center p-3 border-end border-secondary border-opacity-10">
+                            <div class="text-primary h5 mb-2">Heuristic</div>
+                            <p class="smaller text-muted">Pattern matching against 28 known phishing signals.</p>
+                        </div>
+                        <div class="col-md-4 text-center p-3">
+                            <div class="text-success h5 mb-2">Global</div>
+                            <p class="smaller text-muted">Real-time cross-check against global threat databases.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results -->
+            <section id="results" class="help-section fade-up">
+                <h2><i class="bi bi-bar-chart-fill"></i> Interpretation</h2>
+                <div class="glass-card overflow-hidden">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-white bg-opacity-5">
+                            <tr>
+                                <th class="ps-4">Veritcal</th>
+                                <th class="pe-4">Operational Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="ps-4">Safe Verdict</td>
+                                <td class="pe-4 text-success small">The asset passed all neural verification gates.</td>
+                            </tr>
+                            <tr>
+                                <td class="ps-4">Phishing Verdict</td>
+                                <td class="pe-4 text-danger small">Critical threat patterns identified. Avoid
+                                    interaction.</td>
+                            </tr>
+                            <tr>
+                                <td class="ps-4">Confidence Score</td>
+                                <td class="pe-4 text-dim small">Statistical certainty of the model's current assessment.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- FAQ -->
+            <section id="faq" class="help-section fade-up">
+                <h2><i class="bi bi-chat-dots-fill"></i> Intelligence FAQ</h2>
+                <div class="accordion faq-accordion" id="faqAcc">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#f1">
+                                Is ShieldGuard Pro truly open access?
+                            </button>
+                        </h2>
+                        <div id="f1" class="accordion-collapse collapse show" data-bs-parent="#faqAcc">
+                            <div class="accordion-body">
+                                Affirmative. All scanning protocols and intelligence exports are available without
+                                subscription tiers.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#f2">
+                                How often are neural weights updated?
+                            </button>
+                        </h2>
+                        <div id="f2" class="accordion-collapse collapse" data-bs-parent="#faqAcc">
+                            <div class="accordion-body">
+                                Our models are retrained weekly on fresh data from global phishing feeds to ensure
+                                protection against evolving threats.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Simple scroll spy logic
+    window.addEventListener('scroll', () => {
+        let current = "";
+        const sections = document.querySelectorAll("section");
+        const navLinks = document.querySelectorAll(".help-nav-link");
+
+        sections.forEach((section) => {
+            const sectionTop = section.offsetTop;
+            if (pageYOffset >= sectionTop - 150) {
+                current = section.getAttribute("id");
+            }
+        });
+
+        navLinks.forEach((link) => {
+            link.classList.remove("active");
+            if (link.getAttribute("href").includes(current)) {
+                link.classList.add("active");
+            }
+        });
+    });
+</script>
+{% endblock %}

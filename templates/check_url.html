@@ -1,0 +1,477 @@
+{% extends "base.html" %}
+
+{% block title %}URL Scanner - ShieldGuard Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .scanner-container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .scanner-hero {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+
+    .scanner-icon-main {
+        font-size: 3.5rem;
+        background: linear-gradient(135deg, var(--bright-blue), var(--green));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 1rem;
+        display: inline-block;
+        animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+    }
+
+    .result-display {
+        background: var(--bg-card);
+        border: 2px solid var(--border-color);
+        border-radius: var(--radius-xl);
+        padding: 2.5rem;
+        margin-top: 3rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .result-display.phishing {
+        border-left: 6px solid var(--danger);
+        background: linear-gradient(135deg, var(--bg-card), rgba(239, 68, 68, 0.05));
+    }
+
+    .result-display.safe {
+        border-left: 6px solid var(--success);
+        background: linear-gradient(135deg, var(--bg-card), rgba(16, 185, 129, 0.05));
+    }
+
+    .status-badge-large {
+        font-size: 1.25rem;
+        padding: 0.75rem 2rem;
+        border-radius: 100px;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .status-phishing {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05));
+        color: var(--danger);
+        border: 2px solid var(--danger);
+    }
+
+    .status-safe {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05));
+        color: var(--success);
+        border: 2px solid var(--success);
+    }
+
+    .analysis-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: var(--transition);
+    }
+
+    .analysis-card:hover {
+        border-color: var(--accent);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .analysis-card-title {
+        font-weight: 700;
+        color: var(--text-main);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .analysis-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .analysis-item:last-child {
+        border-bottom: none;
+    }
+
+    .analysis-label {
+        font-weight: 500;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+
+    .analysis-value {
+        font-weight: 600;
+        color: var(--text-main);
+    }
+
+    .analysis-value.safe { color: var(--success); }
+    .analysis-value.warning { color: var(--warning); }
+    .analysis-value.danger { color: var(--danger); }
+    .analysis-value.info { color: var(--accent); }
+
+    .safety-score-ring {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        position: relative;
+    }
+
+    .safety-score-ring::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        padding: 6px;
+        background: conic-gradient(var(--success) var(--score, 100%), var(--gray-200) 0);
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+    }
+
+    .feature-breakdown-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        margin-bottom: 0.75rem;
+        transition: var(--transition);
+    }
+
+    .feature-breakdown-card:hover {
+        border-color: var(--accent);
+        transform: translateX(5px);
+    }
+
+    .whois-card { border-left: 4px solid var(--green); }
+    .ssl-card { border-left: 4px solid var(--bright-blue); }
+    .reputation-card { border-left: 4px solid var(--tangerine); }
+
+    .badge-safe { background: var(--success-light); color: #047857; }
+    .badge-danger { background: var(--danger-light); color: #b91c1c; }
+    .badge-warning { background: var(--warning-light); color: #b45309; }
+    .badge-info { background: var(--accent-light); color: #1d4ed8; }
+
+    /* Responsive */
+    @media (max-width: 992px) {
+        .scanner-hero { padding: 30px 20px; }
+        .scanner-hero h1 { font-size: 2rem; }
+    }
+    
+    @media (max-width: 768px) {
+        .container { padding: 20px 15px; }
+        .scanner-hero { padding: 20px 15px; text-align: center; }
+        .scanner-hero h1 { font-size: 1.5rem; }
+        .scanner-icon-main { width: 60px; height: 60px; font-size: 1.75rem; }
+        .result-display { padding: 20px 15px; border-radius: 16px; }
+        .status-badge-large { padding: 12px 20px; font-size: 1rem; }
+        .stats-row .col-md-3 { margin-bottom: 15px; }
+    }
+    
+    @media (max-width: 576px) {
+        .scanner-hero h1 { font-size: 1.25rem; }
+        .scanner-hero p { font-size: 0.9rem; }
+        .result-display h2 { font-size: 1.25rem; }
+        .feature-item { padding: 10px; }
+        .modal-dialog { margin: 10px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="scanner-container">
+        <!-- Scanner Input -->
+        <div class="scanner-hero fade-in">
+            <div class="scanner-icon-main">
+                <i class="bi bi-shield-radar"></i>
+            </div>
+            <h1 class="fw-bold">Advanced <span class="gradient-text">URL Intelligence</span></h1>
+            <p class="text-dim">Our neural engine analyzes 25+ features with Whois & SSL analysis to detect hidden phishing patterns.</p>
+        </div>
+
+        <div class="glass-card p-4 p-lg-5 fade-up">
+            <form method="POST" action="{{ url_for('check_url') }}">
+                <div class="mb-4">
+                    <label class="form-label small uppercase tracking-wider text-dim">Destination URL</label>
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text"><i class="bi bi-globe2"></i></span>
+                        <input type="url" name="url" class="form-control"
+                            placeholder="https://example-security-check.com" required {% if url %}value="{{ url }}" {%
+                            endif %}>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-glow w-100 py-3">
+                    <i class="bi bi-search me-2"></i>Analyze Intelligence
+                </button>
+            </form>
+        </div>
+
+        {% if result %}
+        <!-- Analysis Results -->
+        <div class="result-display fade-up {% if result.is_phishing %}phishing{% else %}safe{% endif %}">
+            <div class="text-center mb-4">
+                {% if result.is_phishing %}
+                <div class="status-badge-large status-phishing">
+                    <i class="bi bi-bug-fill"></i> DETECTED: PHISHING THREAT
+                </div>
+                <h2 class="fw-bold text-danger">Malicious Content Found</h2>
+                {% else %}
+                <div class="status-badge-large status-safe">
+                    <i class="bi bi-patch-check-fill"></i> VERIFIED: LEGITIMATE
+                </div>
+                <h2 class="fw-bold text-success">This URL appears Safe</h2>
+                {% endif %}
+                <p class="text-muted">Analysis complete for: <code class="text-accent">{{ url }}</code></p>
+            </div>
+
+            <!-- Stats Row -->
+            <div class="row g-3 mb-5">
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="h3 fw-bold mb-0 {% if result.is_phishing %}text-danger{% else %}text-success{% endif %}">
+                            {% if result.confidence and result.confidence > 0 %}{{ "%.0f"|format(result.confidence) }}%{% else %}N/A{% endif %}
+                        </div>
+                        <div class="small text-muted uppercase">Confidence</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="h3 fw-bold mb-0 text-accent">25+</div>
+                        <div class="small text-muted uppercase">Features</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="h3 fw-bold mb-0" style="color: var(--green);">{{ result.whois_info.available if result.whois_info else 'N/A' }}</div>
+                        <div class="small text-muted uppercase">Whois</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="h3 fw-bold mb-0" style="{% if result.ssl_info and result.ssl_info.has_ssl %}color: var(--green);{% else %}color: var(--danger);{% endif %}">
+                            {% if result.ssl_info and result.ssl_info.has_ssl %}<i class="bi bi-lock-fill"></i>{% else %}<i class="bi bi-unlock"></i>{% endif %}
+                        </div>
+                        <div class="small text-muted uppercase">SSL Status</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Domain Analysis Cards -->
+            <div class="row g-4 mb-4">
+                <!-- Whois Info -->
+                {% if result.whois_info and result.whois_info.available %}
+                <div class="col-lg-4">
+                    <div class="analysis-card whois-card">
+                        <h6 class="analysis-card-title">
+                            <i class="bi bi-person-vcard text-secondary"></i> Domain Information
+                        </h6>
+                        <div class="analysis-item">
+                            <span class="analysis-label">Domain</span>
+                            <span class="analysis-value">{{ result.whois_info.domain }}</span>
+                        </div>
+                        <div class="analysis-item">
+                            <span class="analysis-label">Registrar</span>
+                            <span class="analysis-value">{{ result.whois_info.registrar }}</span>
+                        </div>
+                        <div class="analysis-item">
+                            <span class="analysis-label">Created</span>
+                            <span class="analysis-value">{{ result.whois_info.creation_date }}</span>
+                        </div>
+                        <div class="analysis-item">
+                            <span class="analysis-label">Expires</span>
+                            <span class="analysis-value">{{ result.whois_info.expiration_date }}</span>
+                        </div>
+                        <div class="analysis-item">
+                            <span class="analysis-label">Age</span>
+                            <span class="analysis-value {% if result.whois_info.domain_age_days and result.whois_info.domain_age_days < 90 %}warning{% endif %}">
+                                {% if result.whois_info.domain_age_years %}{{ result.whois_info.domain_age_years }} years{% else %}Unknown{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- SSL Info -->
+                {% if result.ssl_info and result.ssl_info.available %}
+                <div class="col-lg-4">
+                    <div class="analysis-card ssl-card">
+                        <h6 class="analysis-card-title">
+                            <i class="bi bi-shield-lock text-accent"></i> SSL Certificate
+                        </h6>
+                        <div class="analysis-item">
+                            <span class="analysis-label">SSL Enabled</span>
+                            <span class="analysis-value {% if result.ssl_info.has_ssl %}safe{% else %}danger{% endif %}">
+                                {% if result.ssl_info.has_ssl %}<i class="bi bi-check-circle-fill"></i> Yes{% else %}<i class="bi bi-x-circle-fill"></i> No{% endif %}
+                            </span>
+                        </div>
+                        {% if result.ssl_info.has_ssl %}
+                        <div class="analysis-item">
+                            <span class="analysis-label">Valid</span>
+                            <span class="analysis-value {% if result.ssl_info.valid %}safe{% else %}danger{% endif %}">
+                                {% if result.ssl_info.valid %}<i class="bi bi-check-circle-fill"></i> Valid{% else %}<i class="bi bi-x-circle-fill"></i> Invalid{% endif %}
+                            </span>
+                        </div>
+                        <div class="analysis-item">
+                            <span class="analysis-label">Issuer</span>
+                            <span class="analysis-value">{{ result.ssl_info.issuer }}</span>
+                        </div>
+                        <div class="analysis-item">
+                            <span class="analysis-label">Expires</span>
+                            <span class="analysis-value {% if result.ssl_info.days_until_expiry and result.ssl_info.days_until_expiry < 30 %}warning{% endif %}">
+                                {{ result.ssl_info.not_after }} ({{ result.ssl_info.days_until_expiry }} days)
+                            </span>
+                        </div>
+                        {% else %}
+                        <div class="analysis-item">
+                            <span class="analysis-label">Issue</span>
+                            <span class="analysis-value danger">{{ result.ssl_info.issue }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Reputation -->
+                {% if result.reputation %}
+                <div class="col-lg-4">
+                    <div class="analysis-card reputation-card">
+                        <h6 class="analysis-card-title">
+                            <i class="bi bi-graph-up-arrow text-warning"></i> Safety Score
+                        </h6>
+                        <div class="text-center mb-3">
+                            <div class="safety-score-ring" style="--score: {{ result.reputation.safety_score }}%;">
+                                <div class="text-center">
+                                    <div class="h2 fw-bold {% if result.reputation.safety_score >= 70 %}text-success{% elif result.reputation.safety_score >= 40 %}text-warning{% else %}text-danger{% endif %}">
+                                        {{ result.reputation.safety_score }}
+                                    </div>
+                                    <small class="text-muted">/100</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% if result.reputation.risk_signals %}
+                        <div class="mt-3">
+                            <small class="text-muted fw-bold">Risk Signals:</small>
+                            {% for signal in result.reputation.risk_signals %}
+                            <div class="small text-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i> {{ signal }}</div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="small text-success"><i class="bi bi-check-circle-fill me-1"></i> No risk signals detected</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Feature Breakdown -->
+            <h5 class="mb-3 d-flex align-items-center gap-2">
+                <i class="bi bi-list-stars text-accent"></i> Key Indicators
+            </h5>
+
+            {% if result.feature_importance %}
+                {% for feature in result.feature_importance[:5] %}
+                <div class="feature-breakdown-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold">{{ feature.feature }}</div>
+                            <div class="text-dim small">{{ feature.description }}</div>
+                        </div>
+                        <span class="badge {% if feature.severity == 'high' %}badge-danger{% elif feature.severity == 'medium' %}badge-warning{% else %}badge-info{% endif %} px-3">
+                            {{ feature.severity|upper }}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="text-center text-muted py-3">
+                <i class="bi bi-check-all text-success fs-4"></i>
+                <p class="mb-0">No suspicious features detected</p>
+            </div>
+            {% endif %}
+
+            <div class="d-flex gap-3 mt-5">
+                <button class="btn btn-glow flex-grow-1" data-bs-toggle="modal" data-bs-target="#explainModal">
+                    <i class="bi bi-info-circle me-2"></i>Full Breakdown
+                </button>
+                <a href="{{ url_for('check_url') }}" class="btn btn-outline-primary flex-grow-1">
+                    <i class="bi bi-plus-circle me-2"></i>Scan Another URL
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal -->
+{% if result %}
+<div class="modal fade" id="explainModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content glass-card overflow-hidden">
+            <div class="modal-header border-0" style="background: linear-gradient(135deg, var(--light-blue), var(--ivory));">
+                <h5 class="modal-title fw-bold"><i class="bi bi-robot me-2"></i>AI Engine Intelligence Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert {% if result.is_phishing %}alert-danger{% else %}alert-success{% endif %} mb-4">
+                    <h6 class="fw-bold mb-2">Final Verdict: {% if result.is_phishing %}MALICIOUS{% else %}CLEAN{% endif %}</h6>
+                    <p class="small mb-0">Our Random Forest ensemble model analyzed the pattern and identified it with
+                        {% if result.confidence and result.confidence > 0 %}{{ result.confidence }}%{% else %}high{% endif %} confidence as {% if result.is_phishing %}phishing content{% else %}legitimate traffic{% endif %}.</p>
+                </div>
+
+                <h6 class="fw-bold mb-3">Analysis Pipeline:</h6>
+                <div class="row g-3 small">
+                    <div class="col-md-6">
+                        <ul class="list-unstyled text-muted">
+                            <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Lexical Feature Extraction</li>
+                            <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Domain Analysis</li>
+                            <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Whois Lookup</li>
+                            <li><i class="bi bi-check-circle-fill text-success me-2"></i>SSL Certificate Validation</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-unstyled text-muted">
+                            <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Third-party Feeds Cross-Check</li>
+                            <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Brand Spoofing Detection</li>
+                            <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Domain Age Analysis</li>
+                            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Safety Score Calculation</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Extended Features -->
+                <h6 class="fw-bold mt-4 mb-3">All Features Analyzed:</h6>
+                <div class="row g-2">
+                    {% for key, value in result.features.items() %}
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between py-1 border-bottom">
+                            <span class="text-muted small">{{ key|replace('_', ' ')|title }}</span>
+                            <span class="small fw-bold {% if value == 1 or (value is number and value > 50) %}text-warning{% else %}text-muted{% endif %}">{{ value }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

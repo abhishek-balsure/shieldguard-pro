@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}QR Scan Results - Phishing Detection{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-qr-code-scan"></i> QR Code Scan Results
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if prediction == 'phishing' %}
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle-fill display-4 d-block mb-3"></i>
+                        <h4 class="alert-heading">Phishing URL Detected in QR Code!</h4>
+                        <p><strong>Warning:</strong> This QR code contains a malicious link. Do not visit this URL!</p>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle-fill display-4 d-block mb-3"></i>
+                        <h4 class="alert-heading">QR Code URL is Safe</h4>
+                        <p>The URL embedded in this QR code appears to be legitimate.</p>
+                    </div>
+                    {% endif %}
+
+                    <!-- URL Display -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <strong>URL from QR Code:</strong>
+                        </div>
+                        <div class="card-body">
+                            <code class="h5 user-select-all">{{ url }}</code>
+                            <button class="btn btn-sm btn-outline-secondary ms-2 float-end" 
+                                    onclick="copyToClipboard('{{ url }}')" title="Copy URL">
+                                <i class="bi bi-clipboard"></i> Copy
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Confidence Bar -->
+                    <div class="mb-4">
+                        <label class="form-label">Detection Confidence</label>
+                        <div class="progress" style="height: 35px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated
+                                        {{ 'bg-danger' if prediction == 'phishing' else 'bg-success' }}" 
+                                 role="progressbar" 
+                                 style="width: {{ confidence }}%">
+                                {{ "%.1f"|format(confidence) }}%
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Warning for Phishing -->
+                    {% if prediction == 'phishing' %}
+                    <div class="alert alert-warning">
+                        <h6><i class="bi bi-shield-exclamation"></i> Why is this dangerous?</h6>
+                        <ul class="mb-0">
+                            <li>QR codes can hide malicious destinations</li>
+                            <li>Attackers use QR codes to bypass email filters</li>
+                            <li>The actual URL is hidden until scanned</li>
+                            <li>Mobile users are especially vulnerable</li>
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <!-- Action Buttons -->
+                    <div class="text-center mt-4">
+                        <a href="{{ url_for('qr_scanner') }}" class="btn btn-info">
+                            <i class="bi bi-arrow-clockwise"></i> Scan Another QR Code
+                        </a>
+                        <a href="{{ url_for('history') }}" class="btn btn-primary">
+                            <i class="bi bi-clock-history"></i> View History
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QR Code Safety Tips -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <i class="bi bi-lightbulb"></i> QR Code Safety Tips
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">
+                            <i class="bi bi-check-circle text-success"></i>
+                            Verify the source of the QR code before scanning
+                        </li>
+                        <li class="list-group-item">
+                            <i class="bi bi-check-circle text-success"></i>
+                            Use a QR scanner that shows the URL before opening
+                        </li>
+                        <li class="list-group-item">
+                            <i class="bi bi-check-circle text-success"></i>
+                            Be cautious of QR codes in public places
+                        </li>
+                        <li class="list-group-item">
+                            <i class="bi bi-check-circle text-success"></i>
+                            Never scan QR codes from suspicious emails or messages
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

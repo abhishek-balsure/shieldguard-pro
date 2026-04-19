@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}Neural QR - ShieldGuard Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .qr-scanner-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .qr-drop-zone {
+        border: 2px dashed var(--glass-border);
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: var(--radius-xl);
+        padding: 4rem 2rem;
+        text-align: center;
+        transition: var(--transition);
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .qr-drop-zone:hover,
+    .qr-drop-zone.dragover {
+        background: rgba(99, 102, 241, 0.05);
+        border-color: var(--accent);
+        transform: translateY(-5px);
+    }
+
+    .qr-icon-hero {
+        font-size: 4rem;
+        margin-bottom: 1.5rem;
+        background: var(--primary-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        display: inline-block;
+    }
+
+    .qr-preview-wrapper {
+        position: relative;
+        display: inline-block;
+        margin-top: 2rem;
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        border: 1px solid var(--glass-border);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .qr-preview-img {
+        max-width: 300px;
+        display: block;
+    }
+
+    .qr-result-box {
+        background: rgba(15, 23, 42, 0.4);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-xl);
+        padding: 2.5rem;
+        margin-top: 3rem;
+    }
+
+    .decoded-data-well {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-md);
+        padding: 1.5rem;
+        font-family: 'JetBrains Mono', monospace;
+        word-break: break-all;
+        color: var(--accent);
+        font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+        .container { padding: 15px; }
+        .qr-icon-hero { width: 70px; height: 70px; font-size: 2rem; }
+    }
+    @media (max-width: 576px) {
+        h1 { font-size: 1.5rem; }
+        .qr-result-box { padding: 1rem; font-size: 0.85rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="qr-scanner-container">
+        <!-- Explorer Header -->
+        <div class="text-center mb-5 fade-in">
+            <div class="qr-icon-hero">
+                <i class="bi bi-qr-code-scan"></i>
+            </div>
+            <h1 class="fw-bold">Neural <span class="gradient-text">QR Decoder</span></h1>
+            <p class="text-dim">Decode encrypted or malicious QR codes using our advanced computer vision layer.</p>
+        </div>
+
+        {% if not result %}
+        <div class="glass-card p-4 fade-up">
+            <form method="POST" action="{{ url_for('qr_scanner') }}" enctype="multipart/form-data" id="qrForm">
+                <div class="qr-drop-zone" id="dropZone">
+                    <div id="dropZoneContent">
+                        <i class="bi bi-cloud-arrow-up display-5 text-accent mb-3"></i>
+                        <h5>Inject QR Resource</h5>
+                        <p class="text-dim small mb-4">Drag and drop image or click to browse filesystem</p>
+                        <button type="button" class="btn btn-outline-primary px-4">Browse Files</button>
+                    </div>
+                    <input type="file" name="qr_image" id="qrInput" class="d-none" accept="image/*" required>
+
+                    <div id="previewContainer" style="display: none;">
+                        <div class="qr-preview-wrapper">
+                            <img id="qrPreview" src="#" alt="Preview" class="qr-preview-img">
+                        </div>
+                        <div class="mt-3">
+                            <span class="text-accent small"><i class="bi bi-check-circle me-1"></i> Resource
+                                Ready</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-glow w-100 py-3 mt-4" id="scanBtn" disabled>
+                    Commence Neural Scan
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+        {% if result %}
+        <div class="qr-result-box fade-up">
+            <div class="text-center mb-5">
+                <h5 class="text-dim small uppercase tracking-widest mb-3">Decryption Result</h5>
+                <div class="decoded-data-well mb-4">
+                    {{ result.qr_data }}
+                </div>
+            </div>
+
+            {% if result.is_url %}
+            <div class="row g-4 mb-5">
+                <div class="col-md-6">
+                    <div class="stat-widget p-4 text-center">
+                        <div
+                            class="h4 fw-bold mb-1 {% if result.url_result == 'phishing' %}text-danger{% else %}text-success{% endif %}">
+                            {% if result.url_result == 'phishing' %}MALICIOUS{% else %}LEGITIMATE{% endif %}
+                        </div>
+                        <div class="small text-muted uppercase">Intelligence Verdict</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="stat-widget p-4 text-center">
+                        <div class="h4 fw-bold mb-1 text-accent">{{ "%.0f"|format(result.confidence) }}%</div>
+                        <div class="small text-muted uppercase">Model Confidence</div>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                class="alert {% if result.url_result == 'phishing' %}alert-danger{% else %}alert-success{% endif %} bg-opacity-10 border-0 p-4 mb-4">
+                <div class="d-flex gap-3">
+                    <i
+                        class="bi {% if result.url_result == 'phishing' %}bi-shield-exclamation{% else %}bi-shield-check{% endif %} display-6"></i>
+                    <div>
+                        <h6 class="fw-bold">Security Advisory</h6>
+                        <p class="small mb-0">
+                            {% if result.url_result == 'phishing' %}
+                            This QR code redirects to a high-risk phishing destination. Avoid interaction.
+                            {% else %}
+                            This resource has passed our neural safety checks and appears safe to use.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-info bg-opacity-10 border-0 p-4">
+                <i class="bi bi-info-circle-fill me-2"></i>
+                This resource contains raw data and no URL patterns were matched.
+            </div>
+            {% endif %}
+
+            <div class="text-center mt-5">
+                <a href="{{ url_for('qr_scanner') }}" class="btn btn-outline-primary px-5">
+                    Scan New Resource
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const dropZone = document.getElementById('dropZone');
+    const qrInput = document.getElementById('qrInput');
+    const qrPreview = document.getElementById('qrPreview');
+    const previewContainer = document.getElementById('previewContainer');
+    const dropZoneContent = document.getElementById('dropZoneContent');
+    const scanBtn = document.getElementById('scanBtn');
+
+    dropZone.onclick = () => qrInput.click();
+
+    qrInput.onchange = function () {
+        if (this.files && this.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                qrPreview.src = e.target.result;
+                previewContainer.style.display = 'block';
+                dropZoneContent.style.display = 'none';
+                scanBtn.disabled = false;
+            }
+            reader.readAsDataURL(this.files[0]);
+        }
+    };
+
+    dropZone.ondragover = function (e) {
+        e.preventDefault();
+        this.classList.add('dragover');
+    };
+
+    dropZone.ondragleave = function () {
+        this.classList.remove('dragover');
+    };
+
+    dropZone.ondrop = function (e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            qrInput.files = e.dataTransfer.files;
+            qrInput.onchange();
+        }
+    };
+</script>
+{% endblock %}
