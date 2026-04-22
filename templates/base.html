@@ -82,8 +82,8 @@
                                 <i class="bi bi-translate"></i> {% if current_lang == 'hi' %}हिंदी{% else %}Language{% endif %}
                             </a>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{{ url_for('set_language', lang='en') }}">English</a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('set_language', lang='hi') }}">हिंदी (Hindi)</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('change_language', lang='en') }}">English</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('change_language', lang='hi') }}">हिंदी (Hindi)</a></li>
                             </ul>
                         </li>
                         <li class="nav-item">

@@ -66,10 +66,12 @@ logger = logging.getLogger(__name__)
 
 # Initialize Flask application
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'shieldguard-pro-secret-key-2024')
 app.config['DATABASE'] = os.path.join(os.path.dirname(__file__), 'phishing_detection.db')
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_PERMANENT'] = False
 
 # Create upload folder if it doesn't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -2233,6 +2235,14 @@ def too_large(error):
     return redirect(request.url)
 
 
+# Store language before each request
+@app.before_request
+def store_language():
+    """Ensure lang is in session."""
+    if 'lang' not in session:
+        session['lang'] = 'en'
+
+
 # ============================================================================
 # MULTI-LANGUAGE SUPPORT
 # ============================================================================
@@ -2286,6 +2296,14 @@ def set_language(lang):
         session['lang'] = lang
     else:
         session['lang'] = 'en'
+    return redirect(request.referrer or url_for('index'))
+
+
+@app.route('/language/<lang>')
+def change_language(lang):
+    """Change language."""
+    if lang in ['en', 'hi']:
+        session['lang'] = lang
     return redirect(request.referrer or url_for('index'))
 
 
