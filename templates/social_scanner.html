@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Social Media Scanner - ShieldGuard Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .scanner-form-card {
+        padding: 3rem;
+        margin-bottom: 3rem;
+    }
+
+    .platform-card {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-md);
+        padding: 1.5rem;
+        text-align: center;
+        transition: var(--transition);
+    }
+
+    .platform-card.detected {
+        border-color: var(--accent);
+        background: rgba(99, 102, 241, 0.1);
+    }
+
+    .platform-icon {
+        font-size: 3rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .signal-pill {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-md);
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .signal-pill.warning {
+        border-left: 4px solid var(--warning);
+    }
+
+    .signal-pill.danger {
+        border-left: 4px solid var(--danger);
+    }
+
+    .signal-pill.success {
+        border-left: 4px solid var(--success);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="max-width-900 mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-5 fade-in">
+            <div class="icon-box-sm mx-auto mb-3" style="width: 64px; height: 64px; font-size: 2rem;">
+                <i class="bi bi-people text-accent"></i>
+            </div>
+            <h1 class="fw-bold">Social Media <span class="gradient-text">Scanner</span></h1>
+            <p class="text-dim">Detect fake social media profiles and impersonation attempts.
+            </p>
+        </div>
+
+        <!-- Form -->
+        <div class="glass-card scanner-form-card fade-up">
+            <form method="POST" action="{{ url_for('social_scanner') }}">
+                <div class="mb-4">
+                    <label class="form-label small uppercase tracking-wider text-dim">Social Media URL</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
+                        <input type="url" class="form-control" name="url" required
+                            placeholder="https://facebook.com/fake.page.2024 or https://instagram.com/accounthelp">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-glow w-100 py-3">
+                    <i class="bi bi-shield-check me-2"></i>Analyze Platform
+                </button>
+            </form>
+        </div>
+
+        {% if result %}
+        <!-- Results -->
+        <div class="fade-up">
+            <!-- Platform Detection -->
+            <div class="mb-5">
+                <h5 class="mb-3">Platform Detection</h5>
+                <div class="platform-card detected">
+                    <i class="bi {{ result.platform_info.icon }} platform-icon"></i>
+                    <h4 class="mb-0">{{ result.platform_info.name }}</h4>
+                    <span class="text-dim small">Detected Platform</span>
+                </div>
+            </div>
+
+            <!-- Impersonation Analysis -->
+            <div class="mb-5">
+                <h5 class="mb-3">Impersonation Analysis</h5>
+                
+                {% if result.is_fake %}
+                <div class="signal-pill danger mb-3">
+                    <i class="bi bi-exclamation-triangle text-danger fs-5"></i>
+                    <div>
+                        <strong class="text-danger">Fake Profile Detected!</strong>
+                        <p class="text-dim small mb-0">This URL is impersonating {{ result.platform_info.name }}</p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="signal-pill success mb-3">
+                    <i class="bi bi-check-circle text-success fs-5"></i>
+                    <div>
+                        <strong class="text-success">Official Platform</strong>
+                        <p class="text-dim small mb-0">This appears to be an official {{ result.platform_info.name }} URL</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if result.impersonation_signals %}
+                <h6 class="mb-2">Warning Signs:</h6>
+                {% for signal in result.impersonation_signals %}
+                <div class="signal-pill warning">
+                    <i class="bi bi-exclamation-circle text-warning fs-5"></i>
+                    <span>{{ signal }}</span>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+
+            <!-- ML Analysis -->
+            <div class="mb-5">
+                <h5 class="mb-3">ML Safety Analysis</h5>
+                <div class="glass-card p-4 {% if result.prediction.is_phishing %}border-danger{% else %}border-success{% endif %}">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="mb-1">Prediction Result</h6>
+                            <span class="badge {% if result.prediction.is_phishing %}badge-phishing{% else %}badge-safe{% endif %} fs-6">
+                                {{ result.prediction.result|upper }}
+                            </span>
+                        </div>
+                        <div class="text-end">
+                            <h6 class="mb-1">Confidence</h6>
+                            <span class="fs-4 fw-bold text-accent">{{ "%.0f"|format(result.prediction.confidence) }}%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Final Result -->
+            <div class="glass-card p-4 {% if result.overall_result == 'suspicious' %}border-danger{% else %}border-success{% endif %} bg-opacity-10">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="icon-box-sm {% if result.overall_result == 'suspicious' %}text-danger{% else %}text-success{% endif %}">
+                        <i class="bi {% if result.overall_result == 'suspicious' %}bi-shield-exclamation{% else %}bi-shield-check{% endif %}"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-1">Final Verdict</h6>
+                        <p class="text-dim small mb-0">
+                            {% if result.overall_result == 'suspicious' %}
+                            <strong>Warning:</strong> This social media link is suspicious. Do not click or share any personal information.
+                            {% else %}
+                            <strong>Safe:</strong> This appears to be a legitimate {{ result.platform_info.name }} link.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

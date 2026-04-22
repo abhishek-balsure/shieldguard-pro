@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Message Scanner - ShieldGuard Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .scanner-form-card {
+        padding: 3rem;
+        margin-bottom: 3rem;
+    }
+
+    .message-textarea {
+        background: rgba(255, 255, 255, 0.03) !important;
+        border: 1px solid var(--glass-border) !important;
+        color: var(--text-main) !important;
+        border-radius: var(--radius-lg) !important;
+        padding: 1.5rem !important;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.9rem;
+    }
+
+    .message-textarea:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1) !important;
+    }
+
+    .url-result-pill {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-md);
+        padding: 1rem 1.5rem;
+        margin-bottom: 1rem;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .url-result-pill:hover {
+        border-color: var(--accent);
+        background: rgba(15, 23, 42, 0.8);
+    }
+
+    .url-result-pill.phishing {
+        border-left: 4px solid var(--danger);
+    }
+
+    .url-result-pill.safe {
+        border-left: 4px solid var(--success);
+    }
+
+    .platform-selector {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .platform-btn {
+        flex: 1;
+        padding: 1rem;
+        border: 2px solid var(--glass-border);
+        border-radius: var(--radius-md);
+        background: transparent;
+        color: var(--text-main);
+        cursor: pointer;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .platform-btn:hover {
+        border-color: var(--accent);
+        background: rgba(99, 102, 241, 0.1);
+    }
+
+    .platform-btn.active {
+        border-color: var(--accent);
+        background: rgba(99, 102, 241, 0.2);
+    }
+
+    @media (max-width: 768px) {
+        .container { padding: 15px; }
+        .platform-selector { flex-direction: column; }
+    }
+    @media (max-width: 576px) {
+        h1 { font-size: 1.5rem; }
+        .url-result-pill { padding: 10px; font-size: 0.9rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="max-width-900 mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-5 fade-in">
+            <div class="icon-box-sm mx-auto mb-3" style="width: 64px; height: 64px; font-size: 2rem;">
+                <i class="bi bi-chat-dots text-accent"></i>
+            </div>
+            <h1 class="fw-bold">Message <span class="gradient-text">Scanner</span></h1>
+            <p class="text-dim">Scan SMS or WhatsApp messages for hidden phishing links.
+            </p>
+        </div>
+
+        <!-- Form -->
+        <div class="glass-card scanner-form-card fade-up">
+            <form method="POST" action="{{ url_for('message_scanner') }}">
+                <div class="mb-4">
+                    <label class="form-label small uppercase tracking-wider text-dim">Platform</label>
+                    <div class="platform-selector">
+                        <label class="platform-btn {% if result and result.platform == 'whatsapp' %}active{% endif %}">
+                            <input type="radio" name="platform" value="sms" {% if not result or result.platform == 'sms' %}checked{% endif %}>
+                            <i class="bi bi-chat-left-text"></i> SMS
+                        </label>
+                        <label class="platform-btn {% if result and result.platform == 'whatsapp' %}active{% endif %}">
+                            <input type="radio" name="platform" value="whatsapp" {% if result and result.platform == 'whatsapp' %}checked{% endif %}>
+                            <i class="bi bi-whatsapp"></i> WhatsApp
+                        </label>
+                        <label class="platform-btn {% if result and result.platform == 'telegram' %}active{% endif %}">
+                            <input type="radio" name="platform" value="telegram" {% if result and result.platform == 'telegram' %}checked{% endif %}>
+                            <i class="bi bi-telegram"></i> Telegram
+                        </label>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label small uppercase tracking-wider text-dim">Message Content</label>
+                    <textarea class="form-control message-textarea" name="message" rows="6" required
+                        placeholder="Paste the suspicious SMS or WhatsApp message here..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-glow w-100 py-3">
+                    <i class="bi bi-shield-check me-2"></i>Scan Message
+                </button>
+            </form>
+        </div>
+
+        {% if result %}
+        <!-- Results -->
+        <div class="fade-up">
+            <div class="row g-4 mb-5">
+                <div class="col-md-4">
+                    <div class="stat-widget text-center p-4">
+                        <div class="h2 fw-bold mb-0 text-accent">{{ result.urls_found }}</div>
+                        <div class="small text-muted uppercase">Links Detected</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-widget text-center p-4">
+                        <div class="h2 fw-bold mb-0 text-danger">{{ result.malicious_urls }}</div>
+                        <div class="small text-muted uppercase">Threats Found</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-widget text-center p-4">
+                        <div class="h2 fw-bold mb-0 text-success">{{ result.safe_urls }}</div>
+                        <div class="small text-muted uppercase">Verified Safe</div>
+                    </div>
+                </div>
+            </div>
+
+            {% if result.url_results %}
+            <h5 class="mb-4">Link Assessment <span class="text-dim small fw-normal ms-2">({{ result.url_results|length }} items)</span></h5>
+            <div class="mb-5">
+                {% for url_item in result.url_results %}
+                <div class="url-result-pill {% if url_item.result == 'phishing' %}phishing{% else %}safe{% endif %}">
+                    <div class="overflow-hidden">
+                        <code class="text-accent small text-truncate d-block">{{ url_item.url }}</code>
+                    </div>
+                    <div class="text-end flex-shrink-0">
+                        {% if url_item.result == 'phishing' %}
+                        <span class="badge badge-phishing">THREAT</span>
+                        {% else %}
+                        <span class="badge badge-safe">SAFE</span>
+                        {% endif %}
+                        <div class="text-dim smaller mt-1">{{ "%.0f"|format(url_item.confidence) }}% Conf.</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="glass-card p-4 {% if result.overall_result == 'suspicious' %}border-danger{% else %}border-success{% endif %} bg-opacity-10">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="icon-box-sm {% if result.overall_result == 'suspicious' %}text-danger{% else %}text-success{% endif %}">
+                        <i class="bi {% if result.overall_result == 'suspicious' %}bi-shield-exclamation{% else %}bi-shield-check{% endif %}"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-1">Security Recommendation</h6>
+                        <p class="text-dim small mb-0">
+                            {% if result.overall_result == 'suspicious' %}
+                            <strong>Warning:</strong> Malicious links detected. Do not click any links in this message.
+                            {% elif result.overall_result == 'no_urls' %}
+                            <strong>No Links Found:</strong> This message doesn't contain any URLs to scan.
+                            {% else %}
+                            <strong>Safe:</strong> No malicious patterns detected. Still verify before clicking.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

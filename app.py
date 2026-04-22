@@ -206,6 +206,35 @@ def init_db():
         )
     ''')
     
+    # Message scans table (SMS/WhatsApp)
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS message_scans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            message_content TEXT,
+            platform TEXT,
+            urls_found INTEGER DEFAULT 0,
+            malicious_count INTEGER DEFAULT 0,
+            scan_result TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    # Social media scans table
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS social_scans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            url TEXT NOT NULL,
+            platform TEXT,
+            is_fake INTEGER DEFAULT 0,
+            scan_result TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
     # Bookmarks table
     db.execute('''
         CREATE TABLE IF NOT EXISTS bookmarks (
@@ -1281,6 +1310,184 @@ def email_scanner():
     return render_template('email_scanner.html', result=result)
 
 
+@app.route('/message_scanner', methods=['GET', 'POST'])
+@login_required
+def message_scanner():
+    """SMS/WhatsApp message scanner."""
+    result = None
+    
+    if request.method == 'POST':
+        message = request.form.get('message', '').strip()
+        platform = request.form.get('platform', 'sms')
+        
+        if not message:
+            flash('Please enter a message.', 'warning')
+        else:
+            urls = extract_urls_from_text(message)
+            
+            malicious_urls = 0
+            safe_urls = 0
+            url_results = []
+            
+            for url in urls[:20]:
+                prediction = predict_url(url)
+                url_results.append({
+                    'url': url,
+                    'result': prediction.get('result'),
+                    'confidence': prediction.get('confidence')
+                })
+                if prediction.get('result') == 'phishing':
+                    malicious_urls += 1
+                else:
+                    safe_urls += 1
+            
+            if malicious_urls > 0:
+                overall_result = 'suspicious'
+            elif len(urls) > 0:
+                overall_result = 'safe'
+            else:
+                overall_result = 'no_urls'
+            
+            result = {
+                'platform': platform,
+                'message': message,
+                'urls_found': len(urls),
+                'malicious_urls': malicious_urls,
+                'safe_urls': safe_urls,
+                'url_results': url_results,
+                'overall_result': overall_result
+            }
+            
+            db = get_db()
+            db.execute('''
+                INSERT INTO message_scans (user_id, message_content, platform, urls_found, malicious_count, scan_result)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (
+                session['user_id'],
+                message,
+                platform,
+                len(urls),
+                malicious_urls,
+                overall_result
+            ))
+            db.commit()
+    
+    return render_template('message_scanner.html', result=result)
+
+
+SOCIAL_PLATFORMS = {
+    'facebook': {
+        'name': 'Facebook',
+        'domains': ['facebook.com', 'fb.com', 'mbasic.facebook.com'],
+        'fake_patterns': ['facebook-security', 'fb-help', 'faceb00k', 'facenook', 'facebok'],
+        'icon': 'bi-facebook'
+    },
+    'twitter': {
+        'name': 'Twitter/X',
+        'domains': ['twitter.com', 'x.com'],
+        'fake_patterns': ['twitter-help', 'twiter', 'twittter', 'tweet'],
+        'icon': 'bi-twitter-x'
+    },
+    'instagram': {
+        'name': 'Instagram',
+        'domains': ['instagram.com'],
+        'fake_patterns': ['instagram-help', 'instagraam', 'instgram', 'insragram'],
+        'icon': 'bi-instagram'
+    },
+    'linkedin': {
+        'name': 'LinkedIn',
+        'domains': ['linkedin.com'],
+        'fake_patterns': ['linkedin-help', 'linkdin', 'linkedln'],
+        'icon': 'bi-linkedin'
+    },
+    'youtube': {
+        'name': 'YouTube',
+        'domains': ['youtube.com', 'youtu.be'],
+        'fake_patterns': ['youtube-channel', 'ytube'],
+        'icon': 'bi-youtube'
+    },
+    'whatsapp': {
+        'name': 'WhatsApp',
+        'domains': ['whatsapp.com', 'wa.me'],
+        'fake_patterns': ['whatsapp-support', 'watsapp', 'whatsap'],
+        'icon': 'bi-whatsapp'
+    }
+}
+
+
+@app.route('/social_scanner', methods=['GET', 'POST'])
+@login_required
+def social_scanner():
+    """Social media link scanner."""
+    result = None
+    
+    if request.method == 'POST':
+        url = request.form.get('url', '').strip()
+        
+        if not url:
+            flash('Please enter a URL.', 'warning')
+        elif not url.startswith(('http://', 'https://')):
+            flash('Please enter a valid URL starting with http:// or https://', 'warning')
+        else:
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            hostname = parsed.netloc.lower().replace('www.', '')
+            
+            detected_platform = None
+            is_fake = False
+            impersonation_signals = []
+            
+            for platform, info in SOCIAL_PLATFORMS.items():
+                for domain in info['domains']:
+                    if domain in hostname:
+                        detected_platform = platform
+                        detected_info = info
+                        
+                        for fake in info['fake_patterns']:
+                            if fake in hostname and not any(d in hostname for d in info['domains']):
+                                is_fake = True
+                                impersonation_signals.append(f"Fake domain pattern: {fake}")
+                        break
+                
+                if detected_platform:
+                    break
+            
+            if not detected_platform:
+                detected_platform = 'unknown'
+                detected_info = {'name': 'Unknown', 'icon': 'bi-globe'}
+            else:
+                if parsed.path and '/profile' in parsed.path or '/page' in parsed.path:
+                    if not any(dom in hostname for dom in detected_info['domains']):
+                        is_fake = True
+                        impersonation_signals.append('Suspicious profile/page in fake domain')
+            
+            prediction = predict_url(url)
+            
+            if prediction.get('result') == 'phishing' or is_fake:
+                overall_result = 'suspicious'
+            else:
+                overall_result = 'safe'
+            
+            result = {
+                'url': url,
+                'platform': detected_platform,
+                'platform_info': detected_info,
+                'is_fake': is_fake,
+                'impersonation_signals': impersonation_signals,
+                'prediction': prediction,
+                'overall_result': overall_result
+            }
+            
+            db = get_db()
+            db.execute('''
+                INSERT INTO social_scans (user_id, url, platform, is_fake, scan_result)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (session['user_id'], url, detected_platform, int(is_fake), overall_result))
+            db.commit()
+    
+    return render_template('social_scanner.html', result=result)
+
+
 @app.route('/qr_scanner', methods=['GET', 'POST'])
 @login_required
 def qr_scanner():
@@ -2027,8 +2234,49 @@ def too_large(error):
 
 
 # ============================================================================
-# CONTEXT PROCESSORS
+# MULTI-LANGUAGE SUPPORT
 # ============================================================================
+
+TRANSLATIONS = {
+    'hi': {
+        'home': 'होम',
+        'dashboard': 'डैशबोर्ड',
+        'scanners': 'स्कैनर',
+        'url_scanner': 'URL स्कैनर',
+        'email_scanner': 'ईमेल स्कैनर',
+        'message_scanner': 'मैसेज स्कैनर',
+        'qr_scanner': 'QR स्कैनर',
+        'batch_check': 'बैच चेक',
+        'history': 'इतिहास',
+        'bookmarks': 'बुकमार्क',
+        'profile': 'प्रोफ़ाइल',
+        'login': 'लॉगिन',
+        'signup': 'साइन अप',
+        'logout': 'लॉगआउट',
+        'admin': 'एडमिन',
+        'about': 'के बारे में',
+        'help': 'मदद',
+        'welcome_back': 'वापसी पर स्वागत है',
+        'scan_now': 'अभी स्कैन करें',
+        'no_account': 'खाता नहीं है?',
+        'already_have': 'पहले से खाता है?',
+        'enter_url': 'URL दर्ज करें',
+        'scan_results': 'स्कैन परिणाम',
+        'phishing_detected': 'फ़िशिंग का पता चला',
+        'safe_url': 'सुरक्षित URL',
+        'confidence': 'विश्वास',
+        'features': 'विशेषताएं',
+        'first_scan': 'अपना पहला स्कैन पूरा करें',
+        'url_hunter': '10 URLs स्कैन करें',
+        'phishing_buster': '5 फ़िशिंग URLs का पता लगाएं',
+    }
+}
+
+def get_translation(key):
+    """Get translation for current language."""
+    lang = session.get('lang', 'en')
+    return TRANSLATIONS.get(lang, {}).get(key, key)
+
 
 @app.context_processor
 def inject_globals():
@@ -2037,8 +2285,17 @@ def inject_globals():
         'now': datetime.now(),
         'datetime': datetime,
         'app_name': 'ShieldGuard Pro',
-        'version': '1.0.0'
+        'version': '1.0.0',
+        't': get_translation,
+        'current_lang': session.get('lang', 'en')
     }
+
+
+@app.before_request
+def before_request():
+    """Store selected language in session."""
+    if request.args.get('lang'):
+        session['lang'] = request.args.get('lang') if request.args.get('lang') in TRANSLATIONS else 'en'
 
 
 # ============================================================================
