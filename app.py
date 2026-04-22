@@ -2272,10 +2272,21 @@ TRANSLATIONS = {
     }
 }
 
+
 def get_translation(key):
     """Get translation for current language."""
     lang = session.get('lang', 'en')
     return TRANSLATIONS.get(lang, {}).get(key, key)
+
+
+@app.route('/set_language/<lang>')
+def set_language(lang):
+    """Set language and redirect back."""
+    if lang in TRANSLATIONS:
+        session['lang'] = lang
+    else:
+        session['lang'] = 'en'
+    return redirect(request.referrer or url_for('index'))
 
 
 @app.context_processor
@@ -2289,13 +2300,6 @@ def inject_globals():
         't': get_translation,
         'current_lang': session.get('lang', 'en')
     }
-
-
-@app.before_request
-def before_request():
-    """Store selected language in session."""
-    if request.args.get('lang'):
-        session['lang'] = request.args.get('lang') if request.args.get('lang') in TRANSLATIONS else 'en'
 
 
 # ============================================================================

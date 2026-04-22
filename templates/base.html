@@ -79,11 +79,11 @@
                     {% else %}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                                <i class="bi bi-translate"></i> language
+                                <i class="bi bi-translate"></i> {% if current_lang == 'hi' %}हिंदी{% else %}Language{% endif %}
                             </a>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="?lang=en">English</a></li>
-                                <li><a class="dropdown-item" href="?lang=hi">हिंदी (Hindi)</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('set_language', lang='en') }}">English</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('set_language', lang='hi') }}">हिंदी (Hindi)</a></li>
                             </ul>
                         </li>
                         <li class="nav-item">
