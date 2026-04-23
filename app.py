@@ -1432,34 +1432,63 @@ def social_scanner():
             from urllib.parse import urlparse
             parsed = urlparse(url)
             hostname = parsed.netloc.lower().replace('www.', '')
+            path = parsed.path.lower()
             
             detected_platform = None
             is_fake = False
             impersonation_signals = []
             
-            for platform, info in SOCIAL_PLATFORMS.items():
-                for domain in info['domains']:
-                    if domain in hostname:
+            social_keywords = {
+                'facebook': ['facebook', 'fb.com', 'fb-com', 'faceb00k', 'facebok', 'facenook', 'myfacebook', 'facebooklogin', 'fbsecure', 'meta'],
+                'twitter': ['twitter', 'x.com', 'twiter', 'twittter', 'tweeter', 'xofficial', 'twitterverify'],
+                'instagram': ['instagram', 'instagraam', 'instgram', 'insragram', 'ig', 'iglogin', 'insta', 'ig-official'],
+                'linkedin': ['linkedin', 'linkdin', 'linkedln', 'linkden', 'linkedon'],
+                'whatsapp': ['whatsapp', 'watsapp', 'whatsap', 'wa.me', 'whatsapp-'],
+                'youtube': ['youtube', 'ytube', 'youtub', 'yt', 'ytube'],
+            }
+            
+            platform_info_map = {
+                'facebook': {'name': 'Facebook', 'icon': 'bi-facebook'},
+                'twitter': {'name': 'Twitter/X', 'icon': 'bi-twitter-x'},
+                'instagram': {'name': 'Instagram', 'icon': 'bi-instagram'},
+                'linkedin': {'name': 'LinkedIn', 'icon': 'bi-linkedin'},
+                'whatsapp': {'name': 'WhatsApp', 'icon': 'bi-whatsapp'},
+                'youtube': {'name': 'YouTube', 'icon': 'bi-youtube'},
+            }
+            
+            for platform, keywords in social_keywords.items():
+                for keyword in keywords:
+                    if keyword in hostname:
                         detected_platform = platform
-                        detected_info = info
                         
-                        for fake in info['fake_patterns']:
-                            if fake in hostname and not any(d in hostname for d in info['domains']):
-                                is_fake = True
-                                impersonation_signals.append(f"Fake domain pattern: {fake}")
+                        official_domains = platform_info_map[platform].get('domains', [])
+                        if not any(dom in hostname for dom in official_domains):
+                            is_fake = True
+                            impersonation_signals.append('Unofficial domain claiming to be ' + platform_info_map[platform]['name'])
                         break
-                
                 if detected_platform:
                     break
             
+            if 'facebook' in hostname or 'instagram' in hostname or 'twitter' in hostname or 'linkedin' in hostname:
+                if '/profile' in path or '/page' in path or '/login' in path or '/verify' in path:
+                    is_fake = True
+                    impersonation_signals.append('Suspicious path pattern')
+            
             if not detected_platform:
-                detected_platform = 'unknown'
-                detected_info = {'name': 'Unknown', 'icon': 'bi-globe'}
-            else:
-                if parsed.path and '/profile' in parsed.path or '/page' in parsed.path:
-                    if not any(dom in hostname for dom in detected_info['domains']):
-                        is_fake = True
-                        impersonation_signals.append('Suspicious profile/page in fake domain')
+                if 'facebook' in hostname:
+                    detected_platform = 'facebook'
+                elif 'twitter' in hostname or 'x.com' in hostname:
+                    detected_platform = 'twitter'
+                elif 'instagram' in hostname:
+                    detected_platform = 'instagram'
+                elif 'linkedin' in hostname:
+                    detected_platform = 'linkedin'
+                elif 'whatsapp' in hostname:
+                    detected_platform = 'whatsapp'
+                else:
+                    detected_platform = 'unknown'
+            
+            detected_info = platform_info_map.get(detected_platform, {'name': 'Unknown', 'icon': 'bi-globe'})
             
             prediction = predict_url(url)
             
