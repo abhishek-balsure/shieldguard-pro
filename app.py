@@ -70,8 +70,6 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'shieldguard-pro-secret-
 app.config['DATABASE'] = os.path.join(os.path.dirname(__file__), 'phishing_detection.db')
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
-app.config['SESSION_TYPE'] = 'filesystem'
-app.config['SESSION_PERMANENT'] = False
 
 # Create upload folder if it doesn't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -2266,48 +2264,61 @@ TRANSLATIONS = {
         'admin': 'एडमिन',
         'about': 'के बारे में',
         'help': 'मदद',
-        'welcome_back': 'वापसी पर स्वागत है',
+        'shieldguard_pro': 'शील्डगार्ड प्रो',
         'scan_now': 'अभी स्कैन करें',
-        'no_account': 'खाता नहीं है?',
-        'already_have': 'पहले से खाता है?',
-        'enter_url': 'URL दर्ज करें',
-        'scan_results': 'स्कैन परिणाम',
-        'phishing_detected': 'फ़िशिंग का पता चला',
-        'safe_url': 'सुरक्षित URL',
+        'welcome_back': 'वापसी पर स्वागत है',
+        'login': 'लॉगिन',
+        'signup': 'साइन अप',
+        'email': 'ईमेल',
+        'password': 'पासवर्ड',
+        'url': 'URL',
+        'results': 'परिणाम',
+        'safe': 'सुरक्षित',
+        'phishing': 'फ़िशिंग',
         'confidence': 'विश्वास',
+        'scan_results': 'स्कैन परिणाम',
         'features': 'विशेषताएं',
-        'first_scan': 'अपना पहला स्कैन पूरा करें',
-        'url_hunter': '10 URLs स्कैन करें',
-        'phishing_buster': '5 फ़िशिंग URLs का पता लगाएं',
     }
 }
 
 
-def get_translation(key):
-    """Get translation for current language."""
-    lang = session.get('lang', 'en')
+def get_translation(key, lang='en'):
+    """Get translation for a given language."""
     return TRANSLATIONS.get(lang, {}).get(key, key)
 
 
-@app.route('/set_language/<lang>')
-def set_language(lang):
-    """Set language and redirect back."""
-    if lang in TRANSLATIONS:
-        session['lang'] = lang
-    else:
-        session['lang'] = 'en'
-    return redirect(request.referrer or url_for('index'))
-
-
-@app.route('/language/<lang>')
-def change_language(lang):
-    """Change language."""
-    if lang in ['en', 'hi']:
-        session['lang'] = lang
-    return redirect(request.referrer or url_for('index'))
-
-
 @app.context_processor
+def inject_globals():
+    """Inject global variables into templates."""
+    lang = request.args.get('lang', 'en')
+    if lang not in TRANSLATIONS:
+        lang = 'en'
+    return {
+        'now': datetime.now(),
+        'datetime': datetime,
+        'app_name': 'ShieldGuard Pro',
+        'version': '1.0.0',
+        'current_lang': lang,
+        't': lambda key: get_translation(key, lang)
+    }
+
+
+@app.route('/set_lang/<lang>')
+def set_lang(lang):
+    """Set language via URL and redirect."""
+    if lang not in TRANSLATIONS:
+        lang = 'en'
+    ref = request.referrer or url_for('index')
+    if '?' in ref:
+        ref = ref + f'&lang={lang}'
+    else:
+        ref = ref + f'?lang={lang}'
+    return redirect(ref)
+
+
+# ============================================================================
+# MAIN
+# ============================================================================
 def inject_globals():
     """Inject global variables into templates."""
     return {
