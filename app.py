@@ -1375,46 +1375,6 @@ def message_scanner():
     return render_template('message_scanner.html', result=result)
 
 
-SOCIAL_PLATFORMS = {
-    'facebook': {
-        'name': 'Facebook',
-        'domains': ['facebook.com', 'fb.com', 'mbasic.facebook.com'],
-        'fake_patterns': ['facebook-security', 'fb-help', 'faceb00k', 'facenook', 'facebok'],
-        'icon': 'bi-facebook'
-    },
-    'twitter': {
-        'name': 'Twitter/X',
-        'domains': ['twitter.com', 'x.com'],
-        'fake_patterns': ['twitter-help', 'twiter', 'twittter', 'tweet'],
-        'icon': 'bi-twitter-x'
-    },
-    'instagram': {
-        'name': 'Instagram',
-        'domains': ['instagram.com'],
-        'fake_patterns': ['instagram-help', 'instagraam', 'instgram', 'insragram'],
-        'icon': 'bi-instagram'
-    },
-    'linkedin': {
-        'name': 'LinkedIn',
-        'domains': ['linkedin.com'],
-        'fake_patterns': ['linkedin-help', 'linkdin', 'linkedln'],
-        'icon': 'bi-linkedin'
-    },
-    'youtube': {
-        'name': 'YouTube',
-        'domains': ['youtube.com', 'youtu.be'],
-        'fake_patterns': ['youtube-channel', 'ytube'],
-        'icon': 'bi-youtube'
-    },
-    'whatsapp': {
-        'name': 'WhatsApp',
-        'domains': ['whatsapp.com', 'wa.me'],
-        'fake_patterns': ['whatsapp-support', 'watsapp', 'whatsap'],
-        'icon': 'bi-whatsapp'
-    }
-}
-
-
 @app.route('/social_scanner', methods=['GET', 'POST'])
 @login_required
 def social_scanner():
@@ -1439,12 +1399,21 @@ def social_scanner():
             impersonation_signals = []
             
             social_keywords = {
-                'facebook': ['facebook', 'fb.com', 'fb-com', 'faceb00k', 'facebok', 'facenook', 'myfacebook', 'facebooklogin', 'fbsecure', 'meta'],
-                'twitter': ['twitter', 'x.com', 'twiter', 'twittter', 'tweeter', 'xofficial', 'twitterverify'],
-                'instagram': ['instagram', 'instagraam', 'instgram', 'insragram', 'ig', 'iglogin', 'insta', 'ig-official'],
-                'linkedin': ['linkedin', 'linkdin', 'linkedln', 'linkden', 'linkedon'],
-                'whatsapp': ['whatsapp', 'watsapp', 'whatsap', 'wa.me', 'whatsapp-'],
-                'youtube': ['youtube', 'ytube', 'youtub', 'yt', 'ytube'],
+                'facebook': ['facebook', 'fb.com', 'faceb00k', 'facebok', 'facenook'],
+                'twitter': ['twitter', 'x.com', 'twiter', 'twittter', 'tweeter'],
+                'instagram': ['instagram', 'instagraam', 'instgram', 'insragram', 'insta'],
+                'linkedin': ['linkedin', 'linkdin', 'linkedln', 'linkden'],
+                'whatsapp': ['whatsapp', 'watsapp', 'whatsap', 'wa.me'],
+                'youtube': ['youtube', 'ytube', 'youtub', 'youtu.be'],
+            }
+            
+            official_domains = {
+                'facebook': ['facebook.com', 'fb.com', 'mbasic.facebook.com'],
+                'twitter': ['twitter.com', 'x.com'],
+                'instagram': ['instagram.com'],
+                'linkedin': ['linkedin.com'],
+                'whatsapp': ['whatsapp.com', 'wa.me'],
+                'youtube': ['youtube.com', 'youtu.be'],
             }
             
             platform_info_map = {
@@ -1460,31 +1429,33 @@ def social_scanner():
                 for keyword in keywords:
                     if keyword in hostname:
                         detected_platform = platform
-                        
-                        official_domains = platform_info_map[platform].get('domains', [])
-                        if not any(dom in hostname for dom in official_domains):
-                            is_fake = True
-                            impersonation_signals.append('Unofficial domain claiming to be ' + platform_info_map[platform]['name'])
                         break
                 if detected_platform:
                     break
             
-            if 'facebook' in hostname or 'instagram' in hostname or 'twitter' in hostname or 'linkedin' in hostname:
-                if '/profile' in path or '/page' in path or '/login' in path or '/verify' in path:
+            if detected_platform:
+                doms = official_domains.get(detected_platform, [])
+                if not any(dom in hostname for dom in doms):
+                    impersonation_signals.append('Domain is not an official ' + platform_info_map[detected_platform]['name'] + ' domain')
                     is_fake = True
-                    impersonation_signals.append('Suspicious path pattern')
             
             if not detected_platform:
                 if 'facebook' in hostname:
                     detected_platform = 'facebook'
+                    is_fake = True
+                    impersonation_signals.append('Suspicious Facebook-related domain')
                 elif 'twitter' in hostname or 'x.com' in hostname:
                     detected_platform = 'twitter'
+                    is_fake = True
+                    impersonation_signals.append('Suspicious Twitter-related domain')
                 elif 'instagram' in hostname:
                     detected_platform = 'instagram'
+                    is_fake = True
+                    impersonation_signals.append('Suspicious Instagram-related domain')
                 elif 'linkedin' in hostname:
                     detected_platform = 'linkedin'
-                elif 'whatsapp' in hostname:
-                    detected_platform = 'whatsapp'
+                    is_fake = True
+                    impersonation_signals.append('Suspicious LinkedIn-related domain')
                 else:
                     detected_platform = 'unknown'
             
