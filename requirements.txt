@@ -5,4 +5,3 @@ numpy==1.26.4
 requests==2.31.0
 gunicorn==21.2.0
 pandas==2.1.0
-zxing-cpp==1.4.0
