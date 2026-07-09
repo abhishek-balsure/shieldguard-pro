@@ -51,6 +51,23 @@ jobs:
           docker push abhiishek25/shieldguard-pro:latest
           echo "✅ Image pushed to Docker Hub!"
 
+      - name: Create .env on EC2
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cat > ~/.env << 'EOF'
+            SECRET_KEY=${{ secrets.SECRET_KEY }}
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+            REDIS_URL=redis://shieldguard-redis:6379
+            POSTGRES_DB=shieldguarddb
+            POSTGRES_USER=shieldguard
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            EOF
+
   deploy-to-ec2:
     runs-on: ubuntu-latest
     needs: docker-build-push
@@ -63,7 +80,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~
-            docker-compose pull
-            docker-compose up -d
+            docker compose pull
+            docker compose up -d --remove-orphans
             docker image prune -f
-            echo "✅ Deployed successfully with docker-compose!"
+            echo "✅ Deployed successfully!"

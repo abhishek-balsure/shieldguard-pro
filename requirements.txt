@@ -10,3 +10,4 @@ python-dotenv==1.0.0
 flask-jwt-extended==4.6.0
 flask-limiter==3.8.0
 redis==5.0.8
+xgboost==2.0.3
