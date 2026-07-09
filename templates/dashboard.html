@@ -195,7 +195,7 @@
                                 <small>{{ "%.0f"|format(scan.confidence) }}%</small>
                             </div>
                         </td>
-                        <td class="text-muted small">{{ scan.created_at[:10] }}</td>
+                        <td class="text-muted small">{{ scan.created_at.strftime('%Y-%m-%d') }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>

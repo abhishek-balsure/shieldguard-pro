@@ -347,7 +347,7 @@
                                                 <span class="badge bg-success">Safe</span>
                                                 {% endif %}
                                             </td>
-                                            <td class="text-muted small">{{ scan.created_at[:10] }}</td>
+                                            <td class="text-muted small">{{ scan.created_at.strftime('%Y-%m-%d') }}</td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
@@ -437,7 +437,7 @@
                                         {% endif %}
                                     </td>
                                     <td data-label="Scans">{{ user.scan_count or 0 }}</td>
-                                    <td data-label="Joined" class="text-muted">{{ user.created_at[:10] }}</td>
+                                    <td data-label="Joined" class="text-muted">{{ user.created_at.strftime('%Y-%m-%d') }}</td>
                                     <td data-label="Actions">
                                         <a href="{{ url_for('admin_user_detail', user_id=user.id) }}" class="btn btn-sm btn-outline-primary">
                                             <i class="bi bi-eye"></i>

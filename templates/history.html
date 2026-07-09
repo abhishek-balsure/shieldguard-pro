@@ -144,7 +144,7 @@
                         </td>
                         <td><span class="badge" style="background: var(--light-blue); color: var(--bright-blue); border: 1px solid var(--border-color);">{{ scan.scan_type or 'Web' }}</span>
                         </td>
-                        <td class="pe-4 text-dim small">{{ scan.created_at[:10] }}</td>
+                        <td class="pe-4 text-dim small">{{ scan.created_at.strftime('%Y-%m-%d') }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>

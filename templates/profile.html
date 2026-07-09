@@ -237,7 +237,7 @@
                                             <code class="text-accent smaller d-block text-truncate"
                                                 style="max-width: 400px;">{{ scan.url }}</code>
                                         </td>
-                                        <td class="text-end text-dim smaller">{{ scan.created_at[:10] }}</td>
+                                        <td class="text-end text-dim smaller">{{ scan.created_at.strftime('%Y-%m-%d') }}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
