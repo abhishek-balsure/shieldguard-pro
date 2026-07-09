@@ -1,336 +1,319 @@
 """
-Train Random Forest Classifier for Phishing Detection
-Loads phishing_data.csv, extracts features, trains model, and saves it.
+Train and compare phishing detection models.
+
+Expected dataset format:
+- Required columns: url, label
+- Optional precomputed feature columns: any names returned by get_feature_names()
+
+If precomputed columns exist, they override live feature extraction for those
+specific features. That keeps training practical for expanded datasets that
+already include external rank and page-content signals.
 """
 
-import pandas as pd
-import numpy as np
+import json
+import os
 import pickle
 import time
+from datetime import datetime
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import seaborn as sns
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.base import clone
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import (accuracy_score, precision_score, recall_score, 
-                            f1_score, classification_report, confusion_matrix,
-                            roc_auc_score, roc_curve)
-from feature_extraction import extract_features, get_feature_names, features_to_array
-import warnings
-warnings.filterwarnings('ignore')
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
+from sklearn.model_selection import StratifiedKFold, cross_validate, train_test_split
+
+from feature_extraction import extract_features, features_to_array, get_feature_names
+
+try:
+    from xgboost import XGBClassifier
+except ImportError as exc:
+    raise ImportError(
+        "xgboost is required for model comparison. Install dependencies from requirements.txt."
+    ) from exc
+
+DATASET_FILE = os.environ.get('PHISHING_DATASET', 'phishing_data.csv')
+MODEL_OUTPUT = os.environ.get('PHISHING_MODEL_OUTPUT', 'phishing_model.pkl')
 
 
-def prepare_data(csv_file='phishing_data.csv'):
-    """
-    Load data and extract features.
-    
-    Args:
-        csv_file (str): Path to the CSV file
-        
-    Returns:
-        tuple: X (features), y (labels), feature_names
-    """
+def prepare_data(csv_file=DATASET_FILE):
+    if not os.path.exists(csv_file):
+        raise FileNotFoundError(
+            f"Training dataset not found: {csv_file}. "
+            "Add a CSV with 'url' and 'label' columns before retraining."
+        )
+
     print(f"Loading data from {csv_file}...")
     df = pd.read_csv(csv_file)
-    
+    required_columns = {'url', 'label'}
+    missing = required_columns - set(df.columns)
+    if missing:
+        raise ValueError(f"Dataset is missing required columns: {sorted(missing)}")
+
+    feature_names = get_feature_names()
     print(f"Total samples: {len(df)}")
-    print(f"Label distribution:")
+    print("Label distribution:")
     print(df['label'].value_counts())
-    
-    print("\nExtracting features...")
+    print(f"\nExtracting {len(feature_names)} features...")
+
     features_list = []
     labels = []
-    
-    for idx, row in df.iterrows():
-        if idx % 1000 == 0:
-            print(f"  Processed {idx}/{len(df)} URLs...")
-        
+    available_feature_columns = set(feature_names).intersection(df.columns)
+
+    for index, row in df.iterrows():
+        if index % 1000 == 0:
+            print(f"  Processed {index}/{len(df)} URLs...")
+
         url = str(row['url'])
-        label = row['label']
-        
-        # Extract features
+        label = str(row['label']).strip().lower()
         features_dict = extract_features(url)
-        features_array = features_to_array(features_dict)
-        
-        features_list.append(features_array)
+
+        for feature_name in available_feature_columns:
+            value = row.get(feature_name)
+            if pd.notna(value):
+                features_dict[feature_name] = value
+
+        features_list.append(features_to_array(features_dict, feature_names))
         labels.append(1 if label == 'phishing' else 0)
-    
-    X = np.array(features_list)
-    y = np.array(labels)
-    feature_names = get_feature_names()
-    
+
+    X = np.array(features_list, dtype=float)
+    y = np.array(labels, dtype=int)
+
     print(f"\nFeature matrix shape: {X.shape}")
-    return X, y, feature_names
+    return X, y, feature_names, csv_file
 
 
-def train_model(X, y, feature_names):
-    """
-    Train Random Forest classifier.
-    
-    Args:
-        X (np.array): Feature matrix
-        y (np.array): Labels
-        feature_names (list): List of feature names
-        
-    Returns:
-        RandomForestClassifier: Trained model
-    """
+def get_model_specs():
+    return {
+        'RandomForest': RandomForestClassifier(
+            n_estimators=200,
+            max_depth=24,
+            min_samples_split=4,
+            min_samples_leaf=2,
+            random_state=42,
+            n_jobs=-1,
+            class_weight='balanced',
+        ),
+        'XGBoost': XGBClassifier(
+            n_estimators=250,
+            max_depth=8,
+            learning_rate=0.08,
+            subsample=0.9,
+            colsample_bytree=0.9,
+            objective='binary:logistic',
+            eval_metric='logloss',
+            random_state=42,
+            n_jobs=-1,
+        ),
+    }
+
+
+def evaluate_single_model(model_name, estimator, X_train, X_test, y_train, y_test, X_all, y_all):
     print("\n" + "=" * 80)
-    print("Training Model")
+    print(f"Training {model_name}")
     print("=" * 80)
-    
-    # Split data
+
+    start_time = time.time()
+    estimator.fit(X_train, y_train)
+    training_time = time.time() - start_time
+
+    y_pred = estimator.predict(X_test)
+    y_pred_proba = estimator.predict_proba(X_test)[:, 1]
+
+    accuracy = accuracy_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred, zero_division=0)
+    recall = recall_score(y_test, y_pred, zero_division=0)
+    f1 = f1_score(y_test, y_pred, zero_division=0)
+    auc = roc_auc_score(y_test, y_pred_proba)
+
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    scoring = {
+        'accuracy': 'accuracy',
+        'precision': 'precision',
+        'recall': 'recall',
+        'f1': 'f1',
+        'roc_auc': 'roc_auc',
+    }
+    cv_result = cross_validate(clone(estimator), X_all, y_all, cv=cv, scoring=scoring, n_jobs=1)
+
+    metrics = {
+        'accuracy': round(float(accuracy), 6),
+        'precision': round(float(precision), 6),
+        'recall': round(float(recall), 6),
+        'f1_score': round(float(f1), 6),
+        'roc_auc': round(float(auc), 6),
+        'training_time_seconds': round(float(training_time), 4),
+        'cv_accuracy_mean': round(float(np.mean(cv_result['test_accuracy'])), 6),
+        'cv_accuracy_std': round(float(np.std(cv_result['test_accuracy'])), 6),
+        'cv_precision_mean': round(float(np.mean(cv_result['test_precision'])), 6),
+        'cv_recall_mean': round(float(np.mean(cv_result['test_recall'])), 6),
+        'cv_f1_mean': round(float(np.mean(cv_result['test_f1'])), 6),
+        'cv_roc_auc_mean': round(float(np.mean(cv_result['test_roc_auc'])), 6),
+    }
+
+    print(f"Accuracy:  {metrics['accuracy']:.4f}")
+    print(f"Precision: {metrics['precision']:.4f}")
+    print(f"Recall:    {metrics['recall']:.4f}")
+    print(f"F1-Score:  {metrics['f1_score']:.4f}")
+    print(f"AUC-ROC:   {metrics['roc_auc']:.4f}")
+    print(f"5-fold CV Accuracy: {metrics['cv_accuracy_mean']:.4f} (+/- {metrics['cv_accuracy_std']:.4f})")
+
+    return {
+        'estimator': estimator,
+        'metrics': metrics,
+        'y_pred': y_pred,
+        'y_pred_proba': y_pred_proba,
+        'classification_report': classification_report(
+            y_test, y_pred, target_names=['Legitimate', 'Phishing'], zero_division=0
+        ),
+        'confusion_matrix': confusion_matrix(y_test, y_pred),
+    }
+
+
+def train_and_compare_models(X, y, feature_names):
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
     )
-    
+
     print(f"Training samples: {len(X_train)}")
     print(f"Testing samples: {len(X_test)}")
-    
-    # Create and train model
-    model = RandomForestClassifier(
-        n_estimators=100,
-        max_depth=20,
-        min_samples_split=5,
-        min_samples_leaf=2,
-        random_state=42,
-        n_jobs=-1,
-        class_weight='balanced'
+
+    results = {}
+    for model_name, estimator in get_model_specs().items():
+        results[model_name] = evaluate_single_model(
+            model_name, estimator, X_train, X_test, y_train, y_test, X, y
+        )
+
+    best_model_name = max(
+        results,
+        key=lambda name: (
+            results[name]['metrics']['cv_f1_mean'],
+            results[name]['metrics']['cv_accuracy_mean'],
+        ),
     )
-    
-    print("\nTraining Random Forest...")
-    start_time = time.time()
-    model.fit(X_train, y_train)
-    training_time = time.time() - start_time
-    
-    print(f"Training completed in {training_time:.2f} seconds")
-    
-    # Make predictions
-    print("\nEvaluating model...")
-    y_pred = model.predict(X_test)
-    y_pred_proba = model.predict_proba(X_test)[:, 1]
-    
-    # Calculate metrics
-    accuracy = accuracy_score(y_test, y_pred)
-    precision = precision_score(y_test, y_pred)
-    recall = recall_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred)
-    auc = roc_auc_score(y_test, y_pred_proba)
-    
-    print("\n" + "=" * 80)
-    print("Model Performance")
-    print("=" * 80)
-    print(f"Accuracy:  {accuracy:.4f} ({accuracy*100:.2f}%)")
-    print(f"Precision: {precision:.4f} ({precision*100:.2f}%)")
-    print(f"Recall:    {recall:.4f} ({recall*100:.2f}%)")
-    print(f"F1-Score:  {f1:.4f} ({f1*100:.2f}%)")
-    print(f"AUC-ROC:   {auc:.4f} ({auc*100:.2f}%)")
-    
-    print("\nClassification Report:")
-    print(classification_report(y_test, y_pred, target_names=['Legitimate', 'Phishing']))
-    
-    print("\nConfusion Matrix:")
-    cm = confusion_matrix(y_test, y_pred)
-    print(f"                 Predicted")
-    print(f"                 Legit  Phish")
-    print(f"Actual Legit     {cm[0,0]:5d}  {cm[0,1]:5d}")
-    print(f"       Phish     {cm[1,0]:5d}  {cm[1,1]:5d}")
-    
-    # Feature importance
-    print("\n" + "=" * 80)
-    print("Feature Importance")
-    print("=" * 80)
-    importances = model.feature_importances_
-    indices = np.argsort(importances)[::-1]
-    
-    for i in range(min(20, len(feature_names))):
-        print(f"{i+1:2d}. {feature_names[indices[i]]:30s} {importances[indices[i]]:.4f}")
-    
-    # Cross-validation
-    print("\n" + "=" * 80)
-    print("Cross-Validation (5-fold)")
-    print("=" * 80)
-    cv_scores = cross_val_score(model, X, y, cv=5, scoring='accuracy')
-    print(f"CV Accuracy: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
-    
-    # Save confusion matrix plot
-    print("\n" + "=" * 80)
-    print("Saving Evaluation Artifacts")
-    print("=" * 80)
-    
-    # Create confusion matrix plot
+
+    best_estimator = clone(get_model_specs()[best_model_name])
+    best_estimator.fit(X, y)
+
+    if hasattr(best_estimator, 'feature_importances_'):
+        importances = best_estimator.feature_importances_
+        indices = np.argsort(importances)[::-1]
+    else:
+        importances = np.zeros(len(feature_names))
+        indices = np.arange(len(feature_names))
+
+    save_artifacts(results, best_model_name, feature_names, importances, indices)
+
+    metadata = {
+        'trained_at': datetime.utcnow().isoformat() + 'Z',
+        'feature_names': feature_names,
+        'feature_count': len(feature_names),
+        'best_model_name': best_model_name,
+        'comparison': {name: result['metrics'] for name, result in results.items()},
+    }
+
+    return best_estimator, metadata
+
+
+def save_artifacts(results, best_model_name, feature_names, importances, indices):
+    best_result = results[best_model_name]
+    cm = best_result['confusion_matrix']
+
     plt.figure(figsize=(8, 6))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                xticklabels=['Legitimate', 'Phishing'],
-                yticklabels=['Legitimate', 'Phishing'],
-                cbar_kws={'label': 'Count'})
-    plt.title('Confusion Matrix - Phishing Detection Model', fontsize=14, fontweight='bold')
+    sns.heatmap(
+        cm,
+        annot=True,
+        fmt='d',
+        cmap='Blues',
+        xticklabels=['Legitimate', 'Phishing'],
+        yticklabels=['Legitimate', 'Phishing'],
+        cbar_kws={'label': 'Count'},
+    )
+    plt.title(f'Confusion Matrix - {best_model_name}', fontsize=14, fontweight='bold')
     plt.xlabel('Predicted Label', fontsize=12)
     plt.ylabel('True Label', fontsize=12)
     plt.tight_layout()
     plt.savefig('confusion_matrix.png', dpi=300, bbox_inches='tight')
     plt.close()
     print("Confusion matrix saved to: confusion_matrix.png")
-    
-    # Generate and save detailed metrics report
-    report = classification_report(y_test, y_pred, target_names=['Legitimate', 'Phishing'])
-    
-    metrics_content = f"""
-================================================================================
-                    PHISHING DETECTION MODEL - EVALUATION REPORT
-================================================================================
 
-Dataset Information:
--------------------
-Total Samples: {len(y)}
-Training Samples: {len(X_train)} (80%)
-Testing Samples: {len(X_test)} (20%)
-Features Extracted: {X.shape[1]}
+    metrics_payload = {
+        'best_model_name': best_model_name,
+        'comparison': {name: result['metrics'] for name, result in results.items()},
+        'feature_ranking': [
+            {
+                'feature': feature_names[indices[i]],
+                'importance': round(float(importances[indices[i]]), 6),
+            }
+            for i in range(min(15, len(feature_names)))
+        ],
+        'reports': {name: result['classification_report'] for name, result in results.items()},
+    }
 
-Model Configuration:
--------------------
-Algorithm: Random Forest Classifier
-Number of Trees: 100
-Max Depth: 20
-Min Samples Split: 5
-Min Samples Leaf: 2
-Class Weight: Balanced
+    with open('model_metrics.json', 'w', encoding='utf-8') as metrics_file:
+        json.dump(metrics_payload, metrics_file, indent=2)
+    print("Model metrics saved to: model_metrics.json")
 
-================================================================================
-                            PERFORMANCE METRICS
-================================================================================
-
-Accuracy:  {accuracy:.4f} ({accuracy*100:.2f}%)
-Precision: {precision:.4f} ({precision*100:.2f}%)
-Recall:    {recall:.4f} ({recall*100:.2f}%)
-F1-Score:  {f1:.4f} ({f1*100:.2f}%)
-AUC-ROC:   {auc:.4f} ({auc*100:.2f}%)
-
-Cross-Validation Accuracy: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})
-
-================================================================================
-                        CLASSIFICATION REPORT
-================================================================================
-
-{report}
-
-================================================================================
-                        CONFUSION MATRIX
-================================================================================
-
-                 Predicted
-                 Legit    Phish
-Actual Legit     {cm[0,0]:5d}    {cm[0,1]:5d}
-       Phish     {cm[1,0]:5d}    {cm[1,1]:5d}
-
-Interpretation:
-- True Negatives (Legitimate correctly identified): {cm[0,0]}
-- False Positives (Legitimate marked as Phishing): {cm[0,1]}
-- False Negatives (Phishing marked as Legitimate): {cm[1,0]}
-- True Positives (Phishing correctly identified): {cm[1,1]}
-
-================================================================================
-                        TOP 10 FEATURE IMPORTANCE
-================================================================================
-
-"""
-    
-    for i in range(min(10, len(feature_names))):
-        metrics_content += f"{i+1:2d}. {feature_names[indices[i]]:30s} {importances[indices[i]]:.4f}\n"
-    
-    metrics_content += """
-================================================================================
-Generated by: ShieldGuard Pro Model Training Script
-================================================================================
-"""
-    
-    with open('model_metrics.txt', 'w') as f:
-        f.write(metrics_content)
-    print("Model metrics saved to: model_metrics.txt")
-    
-    return model, accuracy, precision, recall, f1
-
-
-def save_model(model, filename='phishing_model.pkl'):
-    """Save trained model to file."""
-    with open(filename, 'wb') as f:
-        pickle.dump(model, f)
-    print(f"\nModel saved to: {filename}")
-
-
-def test_model(model):
-    """Test model on sample URLs."""
-    print("\n" + "=" * 80)
-    print("Testing on Sample URLs")
-    print("=" * 80)
-    
-    test_urls = [
-        ("https://www.google.com", "legitimate"),
-        ("https://www.youtube.com/watch?v=test", "legitimate"),
-        ("http://192.168.1.1/login.php", "phishing"),
-        ("https://bit.ly/abc123", "phishing"),
-        ("http://verify-paypal-account.tk/login", "phishing"),
-        ("https://www.bankofamerica.com/secure/login", "legitimate"),
-        ("http://secure-update-apple.tk/verify", "phishing"),
-        ("https://github.com/login", "legitimate"),
-        ("http://login-microsoft-verify.ga/auth", "phishing"),
-        ("https://www.amazon.com/gp/sign-in.html", "legitimate")
+    lines = [
+        "ShieldGuard Pro Model Comparison",
+        "=" * 80,
+        f"Best model: {best_model_name}",
+        "",
     ]
-    
-    print("\nSample Predictions:")
-    print("-" * 80)
-    print(f"{'URL':<50s} {'Actual':<12s} {'Predicted':<12s} {'Confidence':<10s}")
-    print("-" * 80)
-    
-    correct = 0
-    for url, actual in test_urls:
-        features_dict = extract_features(url)
-        features_array = features_to_array(features_dict)
-        X_sample = np.array([features_array])
-        
-        prediction = model.predict(X_sample)[0]
-        confidence = model.predict_proba(X_sample)[0]
-        
-        predicted_label = "phishing" if prediction == 1 else "legitimate"
-        confidence_score = max(confidence) * 100
-        
-        if predicted_label == actual:
-            correct += 1
-            status = ""
-        else:
-            status = " [WRONG]"
-        
-        url_display = url[:47] + "..." if len(url) > 50 else url
-        print(f"{url_display:<50s} {actual:<12s} {predicted_label:<12s} {confidence_score:>6.2f}%{status}")
-    
-    print("-" * 80)
-    print(f"Accuracy on samples: {correct}/{len(test_urls)} ({correct/len(test_urls)*100:.1f}%)")
+    for name, result in results.items():
+        lines.append(name)
+        lines.append("-" * len(name))
+        for metric_name, metric_value in result['metrics'].items():
+            lines.append(f"{metric_name}: {metric_value}")
+        lines.append("")
+        lines.append(result['classification_report'])
+        lines.append("")
+
+    with open('model_metrics.txt', 'w', encoding='utf-8') as metrics_text:
+        metrics_text.write("\n".join(lines))
+    print("Model metrics saved to: model_metrics.txt")
+
+
+def save_model(model, metadata, filename=MODEL_OUTPUT):
+    bundle = {
+        'model': model,
+        'scaler': None,
+        'metadata': metadata,
+        'feature_names': metadata['feature_names'],
+    }
+    with open(filename, 'wb') as model_file:
+        pickle.dump(bundle, model_file)
+    print(f"\nBest model saved to: {filename}")
 
 
 def main():
-    """Main training pipeline."""
     print("=" * 80)
-    print("Phishing Detection Model Training")
+    print("ShieldGuard Pro Model Training")
     print("=" * 80)
-    
-    # Load and prepare data
-    X, y, feature_names = prepare_data()
-    
-    # Train model
-    model, accuracy, precision, recall, f1 = train_model(X, y, feature_names)
-    
-    # Save model
-    save_model(model)
-    
-    # Test on samples
-    test_model(model)
-    
-    print("\n" + "=" * 80)
-    print("Training Complete!")
-    print("=" * 80)
-    print(f"\nModel achieves {accuracy*100:.2f}% accuracy on test set")
-    print("Ready for deployment!")
+
+    X, y, feature_names, dataset_file = prepare_data()
+    best_model, metadata = train_and_compare_models(X, y, feature_names)
+    metadata['dataset'] = {
+        'csv_file': dataset_file,
+        'sample_count': int(len(y)),
+    }
+    save_model(best_model, metadata)
+
+    print("\nTraining complete.")
+    print(f"Selected best model: {metadata['best_model_name']}")
+    print(f"Feature count: {metadata['feature_count']}")
 
 
 if __name__ == "__main__":

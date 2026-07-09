@@ -20,6 +20,19 @@ from functools import wraps
 from urllib.parse import urlparse, urljoin
 from collections import Counter
 
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from dotenv import load_dotenv
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_jwt_extended import (
+    JWTManager,
+    create_access_token,
+    get_jwt_identity,
+    jwt_required,
+    verify_jwt_in_request,
+)
+
 try:
     from reportlab.lib.pagesizes import letter
     from reportlab.lib import colors
@@ -37,10 +50,8 @@ from werkzeug.utils import secure_filename
 
 import numpy as np
 
-# Import local feature extraction module
 from feature_extraction import extract_features, features_to_array, get_feature_names
 
-# Try to import optional dependencies
 try:
     import whois
     WHOIS_AVAILABLE = True
@@ -54,222 +65,219 @@ try:
 except ImportError:
     QRCODE_AVAILABLE = False
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-# Initialize Flask application
+load_dotenv()
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'shieldguard-pro-secret-key-2024')
-app.config['DATABASE_URL'] = os.environ.get('DATABASE_URL', 'postgresql://shieldguard:shieldguard123@localhost:5432/shieldguarddb')
+app.config['DATABASE_URL'] = os.environ.get(
+    'DATABASE_URL',
+    'postgresql://phishing_user:phishing_pass@localhost:5432/phishing_db'
+)
+app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', app.config['SECRET_KEY'])
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
+app.config['RATELIMIT_STORAGE_URI'] = os.environ.get('REDIS_URL', 'memory://')
+app.config['RATELIMIT_HEADERS_ENABLED'] = True
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'uploads')
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
-# Create upload folder if it doesn't exist
+jwt = JWTManager(app)
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    default_limits=['100 per hour'],
+    storage_uri=app.config['RATELIMIT_STORAGE_URI'],
+    headers_enabled=True,
+)
+
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Load the phishing detection model
 MODEL_PATH = os.path.join(os.path.dirname(__file__), 'phishing_model.pkl')
 model = None
 scaler = None
-
-# Feature names expected by the model
-MODEL_FEATURES = [
-    'url_length', 'hostname_length', 'has_https', 'has_ip', 'num_dots',
-    'num_hyphens', 'num_underscores', 'num_slashes', 'num_questionmarks',
-    'num_at', 'num_digits', 'num_subdomains', 'has_prefix_suffix',
-    'suspicious_tld', 'has_suspicious_keywords', 'is_shortened', 'url_entropy',
-    'digit_ratio', 'special_char_ratio', 'path_length', 'query_length',
-    'num_equals', 'num_ampersands', 'has_port', 'brand_in_subdomain'
-]
+model_metadata = {}
+AVAILABLE_FEATURES = get_feature_names()
+MODEL_FEATURES = AVAILABLE_FEATURES.copy()
 
 try:
     with open(MODEL_PATH, 'rb') as f:
         model_data = pickle.load(f)
+        saved_feature_names = None
         if isinstance(model_data, dict):
             model = model_data.get('model')
             scaler = model_data.get('scaler')
+            model_metadata = model_data.get('metadata', {})
+            saved_feature_names = model_data.get('feature_names') or model_metadata.get('feature_names')
+            if saved_feature_names:
+                MODEL_FEATURES = list(saved_feature_names)
         else:
             model = model_data
             scaler = None
+        if model is not None and not model_metadata:
+            model_metadata = {
+                'best_model_name': type(model).__name__,
+                'feature_count': getattr(model, 'n_features_in_', len(MODEL_FEATURES)),
+                'feature_names': MODEL_FEATURES,
+            }
+        if model is not None and not saved_feature_names:
+            model_feature_count = getattr(model, 'n_features_in_', len(MODEL_FEATURES))
+            MODEL_FEATURES = AVAILABLE_FEATURES[:model_feature_count]
+            model_metadata['feature_names'] = MODEL_FEATURES
+            model_metadata['feature_count'] = model_feature_count
     logger.info(f"Phishing detection model loaded successfully. Type: {type(model)}")
 except FileNotFoundError:
     logger.warning("Model file not found. Predictions will not be available.")
 except Exception as e:
     logger.error(f"Error loading model: {e}")
 
-# ============================================================================
-# DATABASE FUNCTIONS
-# ============================================================================
-
 def get_db():
-    """Get PostgreSQL database connection with RealDictCursor for dict-like row access."""
     if 'db' not in g:
-        import psycopg2
-        import psycopg2.extras
         g.db = psycopg2.connect(
             app.config['DATABASE_URL'],
-            cursor_factory=psycopg2.extras.RealDictCursor
+            cursor_factory=RealDictCursor
         )
         g.db.autocommit = False
     return g.db
 
-
 def close_db(e=None):
-    """Close database connection."""
     db = g.pop('db', None)
     if db is not None:
         db.close()
 
-
 @app.teardown_appcontext
 def close_connection(exception):
-    """Close database connection after request."""
     close_db(exception)
 
-
 def init_db():
-    """Initialize PostgreSQL database with required tables."""
-    import psycopg2
-    try:
-        conn = psycopg2.connect(app.config['DATABASE_URL'])
-        cur = conn.cursor()
+    db = get_db()
+    cur = db.cursor()
 
-        cur.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                username VARCHAR(80) UNIQUE NOT NULL,
-                email VARCHAR(120) UNIQUE NOT NULL,
-                password TEXT NOT NULL,
-                is_admin INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_login TIMESTAMP
-            )
-        ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            is_admin INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_login TIMESTAMP
+        )
+    ''')
 
-        cur.execute('''
-            CREATE TABLE IF NOT EXISTS scans (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id),
-                url TEXT NOT NULL,
-                result TEXT NOT NULL,
-                confidence REAL,
-                features TEXT,
-                scan_type TEXT DEFAULT 'single',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS scans (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id),
+            url TEXT NOT NULL,
+            result TEXT NOT NULL,
+            confidence REAL,
+            features TEXT,
+            scan_type TEXT DEFAULT 'single',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
 
-        cur.execute('''
-            CREATE TABLE IF NOT EXISTS email_scans (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id),
-                sender TEXT,
-                subject TEXT,
-                content TEXT,
-                urls_found TEXT,
-                malicious_urls INTEGER DEFAULT 0,
-                scan_result TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS email_scans (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id),
+            sender TEXT,
+            subject TEXT,
+            content TEXT,
+            urls_found TEXT,
+            malicious_urls INTEGER DEFAULT 0,
+            scan_result TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
 
-        cur.execute('''
-            CREATE TABLE IF NOT EXISTS qr_scans (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id),
-                qr_data TEXT NOT NULL,
-                is_url INTEGER DEFAULT 0,
-                url_result TEXT,
-                confidence REAL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS qr_scans (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id),
+            qr_data TEXT NOT NULL,
+            is_url INTEGER DEFAULT 0,
+            url_result TEXT,
+            confidence REAL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
 
-        cur.execute('''
-            CREATE TABLE IF NOT EXISTS batch_scans (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id),
-                total_urls INTEGER,
-                malicious_count INTEGER,
-                safe_count INTEGER,
-                file_name TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS batch_scans (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id),
+            total_urls INTEGER,
+            malicious_count INTEGER,
+            safe_count INTEGER,
+            file_name TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
 
-        cur.execute('''
-            CREATE TABLE IF NOT EXISTS message_scans (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id),
-                message_content TEXT,
-                platform TEXT,
-                urls_found INTEGER DEFAULT 0,
-                malicious_count INTEGER DEFAULT 0,
-                scan_result TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS message_scans (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id),
+            message_content TEXT,
+            platform TEXT,
+            urls_found INTEGER DEFAULT 0,
+            malicious_count INTEGER DEFAULT 0,
+            scan_result TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
 
-        cur.execute('''
-            CREATE TABLE IF NOT EXISTS social_scans (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id),
-                url TEXT NOT NULL,
-                platform TEXT,
-                is_fake INTEGER DEFAULT 0,
-                scan_result TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS social_scans (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id),
+            url TEXT NOT NULL,
+            platform TEXT,
+            is_fake INTEGER DEFAULT 0,
+            scan_result TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
 
-        cur.execute('''
-            CREATE TABLE IF NOT EXISTS bookmarks (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id),
-                url TEXT NOT NULL,
-                result TEXT,
-                confidence REAL,
-                note TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS bookmarks (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id),
+            url TEXT NOT NULL,
+            result TEXT,
+            confidence REAL,
+            note TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
 
-        cur.execute('''
-            CREATE TABLE IF NOT EXISTS achievements (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id),
-                badge_name TEXT NOT NULL,
-                badge_description TEXT,
-                badge_icon TEXT,
-                earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS achievements (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id),
+            badge_name TEXT NOT NULL,
+            badge_description TEXT,
+            badge_icon TEXT,
+            earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
 
-        # Create default admin user
-        from werkzeug.security import generate_password_hash
-        admin_hash = generate_password_hash('admin123')
-        cur.execute('''
-            INSERT INTO users (username, email, password, is_admin)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT (username) DO NOTHING
-        ''', ('admin', 'admin@shieldguardpro.com', admin_hash, 1))
+    admin_hash = generate_password_hash('admin123')
+    cur.execute('''
+        INSERT INTO users (username, email, password, is_admin)
+        SELECT %s, %s, %s, %s
+        WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = %s)
+    ''', ('admin', 'admin@phishingdetection.com', admin_hash, 1, 'admin'))
 
-        conn.commit()
-        cur.close()
-        conn.close()
-        logger.info("PostgreSQL database initialized successfully!")
-
-    except Exception as e:
-        logger.error(f"Database initialization error: {e}")
-        raise
-
-# ============================================================================
-# ACHIEVEMENTS SYSTEM
-# ============================================================================
+    db.commit()
+    cur.close()
+    logger.info("Database initialized successfully")
 
 ACHIEVEMENTS = [
     {'name': 'First Scan', 'description': 'Complete your first URL scan', 'icon': 'bi-rocket-takeoff', 'condition': lambda stats: stats.get('total_scans', 0) >= 1},
@@ -282,15 +290,29 @@ ACHIEVEMENTS = [
     {'name': 'Security Pro', 'description': 'Complete 50 scans', 'icon': 'bi-trophy', 'condition': lambda stats: stats.get('total_scans', 0) >= 50},
 ]
 
+def fetch_count(cur, query, params=()):
+    cur.execute(query, params)
+    row = cur.fetchone()
+    return row['count'] if row else 0
 
 def check_and_award_achievements(user_id):
-    """Check and award achievements based on user stats."""
     db = get_db()
     cur = db.cursor()
-    stats = get_user_stats(user_id)
+    total_scans = fetch_count(cur, 'SELECT COUNT(*) as count FROM scans WHERE user_id = %s', (user_id,))
+    phishing_count = fetch_count(cur, "SELECT COUNT(*) as count FROM scans WHERE user_id = %s AND result = 'phishing'", (user_id,))
+    safe_count = fetch_count(cur, "SELECT COUNT(*) as count FROM scans WHERE user_id = %s AND result = 'legitimate'", (user_id,))
+    email_scans = fetch_count(cur, 'SELECT COUNT(*) as count FROM email_scans WHERE user_id = %s', (user_id,))
+    qr_scans = fetch_count(cur, 'SELECT COUNT(*) as count FROM qr_scans WHERE user_id = %s', (user_id,))
+    bookmarks = fetch_count(cur, 'SELECT COUNT(*) as count FROM bookmarks WHERE user_id = %s', (user_id,))
 
-    cur.execute('SELECT COUNT(*) as count FROM bookmarks WHERE user_id = %s', (user_id,))
-    stats['bookmarks'] = cur.fetchone()['count']
+    stats = {
+        'total_scans': total_scans,
+        'phishing_count': phishing_count,
+        'safe_count': safe_count,
+        'email_scans': email_scans,
+        'qr_scans': qr_scans,
+        'bookmarks': bookmarks
+    }
 
     cur.execute('SELECT badge_name FROM achievements WHERE user_id = %s', (user_id,))
     earned = cur.fetchall()
@@ -307,29 +329,21 @@ def check_and_award_achievements(user_id):
 
     if new_badges:
         db.commit()
-
+    cur.close()
     return new_badges
 
-
 def get_user_achievements(user_id):
-    """Get all achievements for a user."""
     db = get_db()
     cur = db.cursor()
     cur.execute('SELECT * FROM achievements WHERE user_id = %s ORDER BY earned_at DESC', (user_id,))
-    return cur.fetchall()
+    rows = cur.fetchall()
+    cur.close()
+    return rows
 
-
-# Initialize database on startup
 with app.app_context():
     init_db()
 
-
-# ============================================================================
-# DECORATORS
-# ============================================================================
-
 def login_required(f):
-    """Decorator to require login for a route."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
@@ -338,9 +352,7 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-
 def admin_required(f):
-    """Decorator to require admin privileges for a route."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
@@ -351,6 +363,7 @@ def admin_required(f):
         cur = db.cursor()
         cur.execute('SELECT is_admin FROM users WHERE id = %s', (session['user_id'],))
         user = cur.fetchone()
+        cur.close()
 
         if not user or not user['is_admin']:
             flash('Admin access required.', 'danger')
@@ -359,26 +372,48 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-
-# ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
-
 def extract_features_for_model(url):
-    """
-    Extract features from URL and return as numpy array for model prediction.
-    Uses the shared feature_extraction module as single source of truth.
-    """
     if not url:
         return np.zeros(len(MODEL_FEATURES)), {}
-
     features_dict = extract_features(url)
     feature_array = [features_dict.get(f, 0) for f in MODEL_FEATURES]
     return np.array(feature_array), features_dict
 
+def validate_password_strength(password):
+    if len(password) < 8:
+        return 'Password must be at least 8 characters long.'
+    if not re.search(r'[A-Z]', password):
+        return 'Password must contain at least one uppercase letter.'
+    if not re.search(r'[a-z]', password):
+        return 'Password must contain at least one lowercase letter.'
+    if not re.search(r'[0-9]', password):
+        return 'Password must contain at least one number.'
+    return None
+
+def rate_limit_by_user_or_ip():
+    try:
+        verify_jwt_in_request(optional=True)
+        user_id = get_jwt_identity()
+        if user_id:
+            return f'user:{user_id}'
+    except Exception:
+        pass
+    return f'ip:{get_remote_address()}'
+
+login_rate_limit = limiter.shared_limit(
+    '5 per minute',
+    scope='login-per-ip',
+    key_func=get_remote_address,
+    methods=['POST'],
+)
+api_user_rate_limit = limiter.shared_limit(
+    '20 per minute',
+    scope='api-per-user',
+    key_func=rate_limit_by_user_or_ip,
+    methods=['POST'],
+)
 
 def check_urlhaus(url):
-    """Cross-validate URL against URLhaus (abuse.ch)."""
     try:
         response = http_requests.post(
             'https://urlhaus-api.abuse.ch/v1/url/',
@@ -398,9 +433,7 @@ def check_urlhaus(url):
         logger.warning(f"URLhaus API check failed: {e}")
     return {'found': False, 'threat': 'N/A', 'status': 'N/A', 'tags': [], 'source': 'URLhaus (abuse.ch)'}
 
-
 def check_phishtank(url):
-    """Check URL against PhishTank database."""
     try:
         response = http_requests.post(
             'https://checkurl.phishtank.com/checkurl/',
@@ -421,9 +454,7 @@ def check_phishtank(url):
         logger.warning(f"PhishTank check failed: {e}")
     return {'found': False, 'is_phishing': False, 'verified': False, 'source': 'PhishTank'}
 
-
 def get_threat_intelligence(url):
-    """Aggregate threat intelligence from free sources."""
     intel = {
         'urlhaus': check_urlhaus(url),
         'phishtank': check_phishtank(url),
@@ -431,13 +462,11 @@ def get_threat_intelligence(url):
         'flagged_by': 0,
         'threat_level': 'low'
     }
-
     flagged = 0
     if intel['urlhaus']['found']:
         flagged += 1
     if intel['phishtank']['found'] and intel['phishtank']['is_phishing']:
         flagged += 1
-
     intel['flagged_by'] = flagged
     if flagged >= 2:
         intel['threat_level'] = 'critical'
@@ -445,9 +474,7 @@ def get_threat_intelligence(url):
         intel['threat_level'] = 'high'
     else:
         intel['threat_level'] = 'low'
-
     return intel
-
 
 FEATURE_DESCRIPTIONS = {
     'url_length': 'URL is unusually long',
@@ -487,17 +514,13 @@ SUSPICIOUS_FEATURES = {
     'has_suspicious_keywords': 'medium'
 }
 
-
 def get_severity_level(confidence, suspicious_features):
-    """Determine severity level based on confidence and suspicious features."""
     severity_score = confidence
-
     for feature, level in suspicious_features.items():
         if level == 'high':
             severity_score += 12
         elif level == 'medium':
             severity_score += 6
-
     if severity_score >= 80:
         return 'high'
     elif severity_score >= 50:
@@ -505,11 +528,8 @@ def get_severity_level(confidence, suspicious_features):
     else:
         return 'low'
 
-
 def get_feature_importance(features_dict):
-    """Analyze which features contributed most to the prediction."""
     importance = []
-
     for feature, value in features_dict.items():
         if feature in ['url_length', 'hostname_length', 'path_length', 'query_length']:
             if value > 75:
@@ -535,14 +555,11 @@ def get_feature_importance(features_dict):
                 'severity': severity,
                 'description': FEATURE_DESCRIPTIONS.get(feature, feature)
             })
-
     severity_order = {'high': 0, 'medium': 1, 'low': 2}
     importance.sort(key=lambda x: severity_order.get(x['severity'], 2))
     return importance[:5]
 
-
 def predict_url(url):
-    """Predict if a URL is phishing or legitimate."""
     if model is None:
         return {
             'error': 'Model not loaded',
@@ -552,16 +569,12 @@ def predict_url(url):
             'is_phishing': False,
             'is_legitimate': False
         }
-
     try:
         feature_array, features_dict = extract_features_for_model(url)
         feature_array = feature_array.reshape(1, -1)
-
         if scaler:
             feature_array = scaler.transform(feature_array)
-
         prediction = model.predict(feature_array)[0]
-
         try:
             probabilities = model.predict_proba(feature_array)[0]
             confidence = float(max(probabilities))
@@ -571,17 +584,13 @@ def predict_url(url):
             confidence = 0.85 if prediction == 1 else 0.85
             prob_phishing = 1.0 if prediction == 1 else 0.0
             prob_legitimate = 0.0 if prediction == 1 else 1.0
-
         result = 'phishing' if prediction == 1 else 'legitimate'
-
         feature_importance = []
         severity = 'none'
-
         if prediction == 1:
             feature_importance = get_feature_importance(features_dict)
             suspicious_features = {f['feature'].lower().replace(' ', '_'): f['severity'] for f in feature_importance}
             severity = get_severity_level(confidence * 100, suspicious_features)
-
         return {
             'result': result,
             'confidence': round(confidence * 100, 2),
@@ -611,9 +620,7 @@ def predict_url(url):
             'feature_importance': []
         }
 
-
 def save_scan(user_id, url, result_data, scan_type='single'):
-    """Save scan result to database."""
     try:
         db = get_db()
         cur = db.cursor()
@@ -629,32 +636,20 @@ def save_scan(user_id, url, result_data, scan_type='single'):
             scan_type
         ))
         db.commit()
-
+        cur.close()
         check_and_award_achievements(user_id)
     except Exception as e:
         logger.error(f"Error saving scan: {e}")
 
-
 def get_user_stats(user_id):
-    """Get statistics for a user."""
     db = get_db()
     cur = db.cursor()
-
-    cur.execute('SELECT COUNT(*) as count FROM scans WHERE user_id = %s', (user_id,))
-    total_scans = cur.fetchone()['count']
-
-    cur.execute("SELECT COUNT(*) as count FROM scans WHERE user_id = %s AND result = 'phishing'", (user_id,))
-    phishing_count = cur.fetchone()['count']
-
-    cur.execute("SELECT COUNT(*) as count FROM scans WHERE user_id = %s AND result = 'legitimate'", (user_id,))
-    safe_count = cur.fetchone()['count']
-
-    cur.execute('SELECT COUNT(*) as count FROM email_scans WHERE user_id = %s', (user_id,))
-    email_scans = cur.fetchone()['count']
-
-    cur.execute('SELECT COUNT(*) as count FROM qr_scans WHERE user_id = %s', (user_id,))
-    qr_scans = cur.fetchone()['count']
-
+    total_scans = fetch_count(cur, 'SELECT COUNT(*) as count FROM scans WHERE user_id = %s', (user_id,))
+    phishing_count = fetch_count(cur, "SELECT COUNT(*) as count FROM scans WHERE user_id = %s AND result = 'phishing'", (user_id,))
+    safe_count = fetch_count(cur, "SELECT COUNT(*) as count FROM scans WHERE user_id = %s AND result = 'legitimate'", (user_id,))
+    email_scans = fetch_count(cur, 'SELECT COUNT(*) as count FROM email_scans WHERE user_id = %s', (user_id,))
+    qr_scans = fetch_count(cur, 'SELECT COUNT(*) as count FROM qr_scans WHERE user_id = %s', (user_id,))
+    cur.close()
     return {
         'total_scans': total_scans,
         'phishing_count': phishing_count,
@@ -663,45 +658,30 @@ def get_user_stats(user_id):
         'qr_scans': qr_scans
     }
 
-
 def extract_urls_from_text(text):
-    """Extract URLs from text content."""
     url_pattern = re.compile(
         r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
     )
     return url_pattern.findall(text)
 
-
-# ============================================================================
-# ADVANCED ANALYSIS FEATURES
-# ============================================================================
-
 def get_whois_info(url):
-    """Get Whois information for a domain."""
     if not WHOIS_AVAILABLE:
         return {'available': False, 'error': 'Whois module not available'}
-
     try:
         parsed = urlparse(url)
         domain = parsed.netloc.lower()
-
         if ':' in domain:
             domain = domain.split(':')[0]
-
         parts = domain.split('.')
         if len(parts) > 2:
             domain = '.'.join(parts[-2:])
-
         w = whois.whois(domain)
-
         creation_date = w.creation_date
         if isinstance(creation_date, list):
             creation_date = creation_date[0]
-
         expiration_date = w.expiration_date
         if isinstance(expiration_date, list):
             expiration_date = expiration_date[0]
-
         domain_age_days = None
         if creation_date:
             if isinstance(creation_date, str):
@@ -712,14 +692,11 @@ def get_whois_info(url):
                         creation_date = datetime.strptime(creation_date.split(' ')[0], '%Y-%m-%d')
                     except:
                         creation_date = None
-
             if creation_date and isinstance(creation_date, datetime):
                 domain_age_days = (datetime.now() - creation_date).days
-
         registrar = w.registrar
         if isinstance(registrar, list):
             registrar = registrar[0] if registrar else 'Unknown'
-
         return {
             'available': True,
             'domain': domain,
@@ -728,7 +705,7 @@ def get_whois_info(url):
             'expiration_date': expiration_date.strftime('%Y-%m-%d') if expiration_date and isinstance(expiration_date, datetime) else str(expiration_date) if expiration_date else 'Unknown',
             'domain_age_days': domain_age_days,
             'domain_age_years': round(domain_age_days / 365, 1) if domain_age_days else None,
-            'registrant': w.registrant_name if hasattr(w, 'registrant_name') else None,
+            ' registrant': w.registrant_name if hasattr(w, 'registrant_name') else None,
             'country': w.country if hasattr(w, 'country') else None,
             'emails': w.emails if hasattr(w, 'emails') else None
         }
@@ -736,12 +713,9 @@ def get_whois_info(url):
         logger.warning(f"Whois lookup failed for {url}: {e}")
         return {'available': False, 'error': str(e)}
 
-
 def get_ssl_info(url):
-    """Analyze SSL certificate of a URL."""
     parsed = urlparse(url)
     hostname = parsed.netloc.split(':')[0] if ':' in parsed.netloc else parsed.netloc
-
     if parsed.scheme != 'https':
         return {
             'available': True,
@@ -749,17 +723,13 @@ def get_ssl_info(url):
             'valid': False,
             'issue': 'No HTTPS/SSL certificate'
         }
-
     try:
         import ssl
         import socket
-
         context = ssl.create_default_context()
-
         with socket.create_connection((hostname, 443), timeout=5) as sock:
             with context.wrap_socket(sock, server_hostname=hostname) as ssock:
                 cert = ssock.getpeercert()
-
         if not cert:
             return {
                 'available': True,
@@ -767,16 +737,12 @@ def get_ssl_info(url):
                 'valid': False,
                 'issue': 'No certificate found'
             }
-
         subject = dict(x[0] for x in cert['subject'])
         issuer = dict(x[0] for x in cert['issuer'])
-
         not_before = datetime.strptime(cert['notBefore'].replace(' GMT', ''), '%b %d %H:%M:%S %Y')
         not_after = datetime.strptime(cert['notAfter'].replace(' GMT', ''), '%b %d %H:%M:%S %Y')
-
         days_until_expiry = (not_after - datetime.now()).days
         is_valid = datetime.now() >= not_before and datetime.now() <= not_after
-
         return {
             'available': True,
             'has_ssl': True,
@@ -805,42 +771,33 @@ def get_ssl_info(url):
             'issue': str(e)
         }
 
-
 def get_domain_reputation(url):
-    """Check domain reputation across multiple threat intelligence sources."""
     parsed = urlparse(url)
     domain = parsed.netloc.lower()
-
     if ':' in domain:
         domain = domain.split(':')[0]
-
     parts = domain.split('.')
     if len(parts) > 2:
         domain = '.'.join(parts[-2:])
-
     reputation = {
         'domain': domain,
         'is_new_domain': None,
         'risk_signals': [],
         'safety_score': 100
     }
-
     try:
         whois_info = get_whois_info(url)
         if whois_info.get('available') and whois_info.get('domain_age_days'):
             age = whois_info['domain_age_days']
             reputation['is_new_domain'] = age < 90
-
             if age < 30:
                 reputation['risk_signals'].append('Domain created within last 30 days')
                 reputation['safety_score'] -= 30
             elif age < 90:
                 reputation['risk_signals'].append('Domain created within last 90 days')
                 reputation['safety_score'] -= 15
-
             if age > 365:
                 reputation['safety_score'] += 10
-
         ssl_info = get_ssl_info(url)
         if ssl_info.get('available'):
             if not ssl_info.get('has_ssl'):
@@ -852,39 +809,26 @@ def get_domain_reputation(url):
             elif ssl_info.get('days_until_expiry', 0) < 30:
                 reputation['risk_signals'].append('SSL certificate expiring soon')
                 reputation['safety_score'] -= 10
-
         if 'paypal' in domain.lower() or 'apple' in domain.lower() or 'google' in domain.lower() or 'microsoft' in domain.lower():
             if not any(brand in domain.lower() for brand in ['paypal.com', 'apple.com', 'google.com', 'microsoft.com']):
                 reputation['risk_signals'].append('Possible brand impersonation')
                 reputation['safety_score'] -= 40
-
         reputation['safety_score'] = max(0, min(100, reputation['safety_score']))
-
     except Exception as e:
         logger.warning(f"Reputation check failed: {e}")
-
     return reputation
-
-
-# ============================================================================
-# ROUTES
-# ============================================================================
 
 @app.route('/')
 def index():
-    """Home page."""
     db = get_db()
     cur = db.cursor()
-
     cur.execute('SELECT COUNT(*) as count FROM scans')
     total_scans = cur.fetchone()['count']
-
     cur.execute('SELECT COUNT(*) as count FROM users')
     total_users = cur.fetchone()['count']
-
     cur.execute("SELECT COUNT(*) as count FROM scans WHERE result = 'phishing'")
     phishing_detected = cur.fetchone()['count']
-
+    cur.close()
     return render_template(
         'index.html',
         total_scans=total_scans,
@@ -892,146 +836,107 @@ def index():
         phishing_detected=phishing_detected
     )
 
-
 @app.route('/quick_check', methods=['POST'])
 def quick_check():
-    """Quick URL check from homepage."""
     url = request.form.get('url', '').strip()
-
     if not url:
         flash('Please enter a URL.', 'warning')
         return redirect(url_for('index'))
-
     if not url.startswith(('http://', 'https://')):
         flash('Please enter a valid URL starting with http:// or https://', 'warning')
         return redirect(url_for('index'))
-
     result = predict_url(url)
-
     if 'user_id' in session:
         save_scan(session['user_id'], url, result, 'quick')
-
     return render_template('check_url.html', result=result, url=url, quick_check=True)
 
-
 @app.route('/login', methods=['GET', 'POST'])
+@login_rate_limit
 def login():
-    """User login."""
     if 'user_id' in session:
         return redirect(url_for('profile'))
-
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
-
         if not username or not password:
             flash('Please enter both username and password.', 'danger')
             return render_template('login.html')
-
         db = get_db()
         cur = db.cursor()
         cur.execute('SELECT * FROM users WHERE username = %s', (username,))
         user = cur.fetchone()
-
+        cur.close()
         if user and check_password_hash(user['password'], password):
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['is_admin'] = bool(user['is_admin'])
-
+            cur = db.cursor()
             cur.execute('UPDATE users SET last_login = %s WHERE id = %s', (datetime.now(), user['id']))
             db.commit()
-
+            cur.close()
             flash(f'Welcome back, {username}!', 'success')
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid username or password.', 'danger')
-
     return render_template('login.html')
-
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
-    """User registration."""
     if 'user_id' in session:
         return redirect(url_for('profile'))
-
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
         confirm_password = request.form.get('confirm_password', '')
-
         if not username or not email or not password:
             flash('Please fill in all fields.', 'danger')
             return render_template('signup.html')
-
         if password != confirm_password:
             flash('Passwords do not match.', 'danger')
             return render_template('signup.html')
-
-        if len(password) < 8:
-            flash('Password must be at least 8 characters long.', 'danger')
+        password_error = validate_password_strength(password)
+        if password_error:
+            flash(password_error, 'danger')
             return render_template('signup.html')
-
-        if not re.search(r'[A-Z]', password):
-            flash('Password must contain at least one uppercase letter.', 'danger')
-            return render_template('signup.html')
-
-        if not re.search(r'[a-z]', password):
-            flash('Password must contain at least one lowercase letter.', 'danger')
-            return render_template('signup.html')
-
-        if not re.search(r'[0-9]', password):
-            flash('Password must contain at least one number.', 'danger')
-            return render_template('signup.html')
-
         if not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
             flash('Please enter a valid email address.', 'danger')
             return render_template('signup.html')
-
         db = get_db()
         cur = db.cursor()
-
         cur.execute('SELECT id FROM users WHERE username = %s', (username,))
         if cur.fetchone():
+            cur.close()
             flash('Username already taken.', 'danger')
             return render_template('signup.html')
-
         cur.execute('SELECT id FROM users WHERE email = %s', (email,))
         if cur.fetchone():
+            cur.close()
             flash('Email already registered.', 'danger')
             return render_template('signup.html')
-
         password_hash = generate_password_hash(password)
         cur.execute('''
             INSERT INTO users (username, email, password)
             VALUES (%s, %s, %s)
         ''', (username, email, password_hash))
         db.commit()
-
+        cur.close()
         flash('Account created successfully! Please log in.', 'success')
         return redirect(url_for('login'))
-
     return render_template('signup.html')
-
 
 @app.route('/logout')
 def logout():
-    """User logout."""
     session.clear()
     flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
 
-
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    """User dashboard."""
     stats = get_user_stats(session['user_id'])
-
     db = get_db()
     cur = db.cursor()
-
     cur.execute('''
         SELECT * FROM scans
         WHERE user_id = %s
@@ -1039,7 +944,6 @@ def dashboard():
         LIMIT 10
     ''', (session['user_id'],))
     recent_scans = cur.fetchall()
-
     cur.execute('''
         SELECT * FROM bookmarks
         WHERE user_id = %s
@@ -1051,30 +955,34 @@ def dashboard():
     today = datetime.now()
     dates = [(today - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(6, -1, -1)]
     date_labels = [(today - timedelta(days=i)).strftime('%b %d') for i in range(6, -1, -1)]
-
     url_activity = []
     email_activity = []
     qr_activity = []
 
     for date in dates:
         cur.execute('''
-            SELECT COUNT(*) as count FROM scans
+            SELECT COUNT(*) FROM scans
             WHERE user_id = %s AND scan_type = 'single' AND DATE(created_at) = %s
         ''', (session['user_id'], date))
-        url_activity.append(cur.fetchone()['count'] or 0)
+        url_count = (cur.fetchone() or {}).get('count', 0)
 
         cur.execute('''
-            SELECT COUNT(*) as count FROM email_scans
+            SELECT COUNT(*) FROM email_scans
             WHERE user_id = %s AND DATE(created_at) = %s
         ''', (session['user_id'], date))
-        email_activity.append(cur.fetchone()['count'] or 0)
+        email_count = (cur.fetchone() or {}).get('count', 0)
 
         cur.execute('''
-            SELECT COUNT(*) as count FROM qr_scans
+            SELECT COUNT(*) FROM qr_scans
             WHERE user_id = %s AND DATE(created_at) = %s
         ''', (session['user_id'], date))
-        qr_activity.append(cur.fetchone()['count'] or 0)
+        qr_count = (cur.fetchone() or {}).get('count', 0)
 
+        url_activity.append(url_count)
+        email_activity.append(email_count)
+        qr_activity.append(qr_count)
+
+    cur.close()
     return render_template(
         'dashboard.html',
         stats=stats,
@@ -1087,18 +995,14 @@ def dashboard():
         qr_activity=qr_activity
     )
 
-
 @app.route('/check_url', methods=['GET', 'POST'])
 @login_required
 def check_url():
-    """URL checking page."""
     result = None
     url = ''
     threat_intel = None
-
     if request.method == 'POST':
         url = request.form.get('url', '').strip()
-
         if not url:
             flash('Please enter a URL.', 'warning')
         elif not url.startswith(('http://', 'https://')):
@@ -1107,32 +1011,23 @@ def check_url():
             result = predict_url(url)
             threat_intel = get_threat_intelligence(url)
             save_scan(session['user_id'], url, result, 'single')
-
     return render_template('check_url.html', result=result, url=url, threat_intel=threat_intel)
-
 
 @app.route('/scanner')
 @login_required
 def scanner():
-    """Unified scanner page with all scan types."""
     return render_template('scanner.html')
-
 
 @app.route('/batch_check', methods=['GET', 'POST'])
 @login_required
 def batch_check():
-    """Batch URL checking."""
     results = []
-
     if request.method == 'POST':
         urls_text = request.form.get('urls', '')
         file = request.files.get('file')
-
         urls = []
-
         if urls_text:
             urls = [url.strip() for url in urls_text.split('\n') if url.strip()]
-
         if file and file.filename:
             try:
                 filename = secure_filename(file.filename)
@@ -1152,7 +1047,6 @@ def batch_check():
                     urls.extend([url.strip() for url in content.split('\n') if url.strip()])
             except Exception as e:
                 flash(f'Error reading file: {e}', 'danger')
-
         if not urls:
             flash('Please enter URLs or upload a file.', 'warning')
         else:
@@ -1162,10 +1056,8 @@ def batch_check():
                     result['url'] = url
                     results.append(result)
                     save_scan(session['user_id'], url, result, 'batch')
-
             malicious_count = sum(1 for r in results if r.get('result') == 'phishing')
             safe_count = sum(1 for r in results if r.get('result') == 'legitimate')
-
             db = get_db()
             cur = db.cursor()
             cur.execute('''
@@ -1173,7 +1065,7 @@ def batch_check():
                 VALUES (%s, %s, %s, %s)
             ''', (session['user_id'], len(results), malicious_count, safe_count))
             db.commit()
-
+            cur.close()
             return render_template(
                 'batch_results.html',
                 results=results,
@@ -1181,29 +1073,22 @@ def batch_check():
                 malicious=malicious_count,
                 safe=safe_count
             )
-
     return render_template('batch.html')
-
 
 @app.route('/email_scanner', methods=['GET', 'POST'])
 @login_required
 def email_scanner():
-    """Email content scanner."""
     result = None
-
     if request.method == 'POST':
         sender = request.form.get('sender', '').strip()
         subject = request.form.get('subject', '').strip()
         content = request.form.get('content', '').strip()
-
         if not content:
             flash('Please enter email content.', 'warning')
         else:
             urls = extract_urls_from_text(content)
-
             malicious_urls = 0
             url_results = []
-
             for url in urls[:20]:
                 prediction = predict_url(url)
                 url_results.append({
@@ -1213,21 +1098,18 @@ def email_scanner():
                 })
                 if prediction.get('result') == 'phishing':
                     malicious_urls += 1
-
             if malicious_urls > 0:
                 overall_result = 'suspicious'
             elif len(urls) > 0:
                 overall_result = 'safe'
             else:
                 overall_result = 'no_urls'
-
             result = {
                 'urls_found': len(urls),
                 'malicious_urls': malicious_urls,
                 'url_results': url_results,
                 'overall_result': overall_result
             }
-
             db = get_db()
             cur = db.cursor()
             cur.execute('''
@@ -1244,29 +1126,23 @@ def email_scanner():
                 overall_result
             ))
             db.commit()
-
+            cur.close()
     return render_template('email_scanner.html', result=result)
-
 
 @app.route('/message_scanner', methods=['GET', 'POST'])
 @login_required
 def message_scanner():
-    """SMS/WhatsApp message scanner."""
     result = None
-
     if request.method == 'POST':
         message = request.form.get('message', '').strip()
         platform = request.form.get('platform', 'sms')
-
         if not message:
             flash('Please enter a message.', 'warning')
         else:
             urls = extract_urls_from_text(message)
-
             malicious_urls = 0
             safe_urls = 0
             url_results = []
-
             for url in urls[:20]:
                 prediction = predict_url(url)
                 url_results.append({
@@ -1278,14 +1154,12 @@ def message_scanner():
                     malicious_urls += 1
                 else:
                     safe_urls += 1
-
             if malicious_urls > 0:
                 overall_result = 'suspicious'
             elif len(urls) > 0:
                 overall_result = 'safe'
             else:
                 overall_result = 'no_urls'
-
             result = {
                 'platform': platform,
                 'message': message,
@@ -1295,7 +1169,6 @@ def message_scanner():
                 'url_results': url_results,
                 'overall_result': overall_result
             }
-
             db = get_db()
             cur = db.cursor()
             cur.execute('''
@@ -1310,32 +1183,27 @@ def message_scanner():
                 overall_result
             ))
             db.commit()
-
+            cur.close()
     return render_template('message_scanner.html', result=result)
-
 
 @app.route('/social_scanner', methods=['GET', 'POST'])
 @login_required
 def social_scanner():
-    """Social media link scanner."""
     result = None
-
     if request.method == 'POST':
         url = request.form.get('url', '').strip()
-
         if not url:
             flash('Please enter a URL.', 'warning')
         elif not url.startswith(('http://', 'https://')):
             flash('Please enter a valid URL starting with http:// or https://', 'warning')
         else:
+            from urllib.parse import urlparse
             parsed = urlparse(url)
             hostname = parsed.netloc.lower().replace('www.', '')
             path = parsed.path.lower()
-
             detected_platform = None
             is_fake = False
             impersonation_signals = []
-
             social_keywords = {
                 'facebook': ['facebook', 'fb.com', 'faceb00k', 'facebok', 'facenook'],
                 'twitter': ['twitter', 'x.com', 'twiter', 'twittter', 'tweeter'],
@@ -1344,7 +1212,6 @@ def social_scanner():
                 'whatsapp': ['whatsapp', 'watsapp', 'whatsap', 'wa.me'],
                 'youtube': ['youtube', 'ytube', 'youtub', 'youtu.be'],
             }
-
             official_domains = {
                 'facebook': ['facebook.com', 'fb.com', 'mbasic.facebook.com'],
                 'twitter': ['twitter.com', 'x.com'],
@@ -1353,7 +1220,6 @@ def social_scanner():
                 'whatsapp': ['whatsapp.com', 'wa.me'],
                 'youtube': ['youtube.com', 'youtu.be'],
             }
-
             platform_info_map = {
                 'facebook': {'name': 'Facebook', 'icon': 'bi-facebook'},
                 'twitter': {'name': 'Twitter/X', 'icon': 'bi-twitter-x'},
@@ -1362,7 +1228,6 @@ def social_scanner():
                 'whatsapp': {'name': 'WhatsApp', 'icon': 'bi-whatsapp'},
                 'youtube': {'name': 'YouTube', 'icon': 'bi-youtube'},
             }
-
             for platform, keywords in social_keywords.items():
                 for keyword in keywords:
                     if keyword in hostname:
@@ -1370,13 +1235,11 @@ def social_scanner():
                         break
                 if detected_platform:
                     break
-
             if detected_platform:
                 doms = official_domains.get(detected_platform, [])
                 if not any(dom in hostname for dom in doms):
                     impersonation_signals.append('Domain is not an official ' + platform_info_map[detected_platform]['name'] + ' domain')
                     is_fake = True
-
             if not detected_platform:
                 if 'facebook' in hostname:
                     detected_platform = 'facebook'
@@ -1394,18 +1257,12 @@ def social_scanner():
                     detected_platform = 'linkedin'
                     is_fake = True
                     impersonation_signals.append('Suspicious LinkedIn-related domain')
-                else:
-                    detected_platform = 'unknown'
-
             detected_info = platform_info_map.get(detected_platform, {'name': 'Unknown', 'icon': 'bi-globe'})
-
             prediction = predict_url(url)
-
             if prediction.get('result') == 'phishing' or is_fake:
                 overall_result = 'suspicious'
             else:
                 overall_result = 'safe'
-
             result = {
                 'url': url,
                 'platform': detected_platform,
@@ -1415,7 +1272,6 @@ def social_scanner():
                 'prediction': prediction,
                 'overall_result': overall_result
             }
-
             db = get_db()
             cur = db.cursor()
             cur.execute('''
@@ -1423,115 +1279,90 @@ def social_scanner():
                 VALUES (%s, %s, %s, %s, %s)
             ''', (session['user_id'], url, detected_platform, int(is_fake), overall_result))
             db.commit()
-
+            cur.close()
     return render_template('social_scanner.html', result=result)
-
 
 @app.route('/qr_scanner', methods=['GET', 'POST'])
 @login_required
 def qr_scanner():
-    """QR code scanner."""
     result = None
-
     if request.method == 'POST':
         if 'qr_image' not in request.files:
             flash('No file uploaded.', 'warning')
             return render_template('qr_scanner.html')
-
         file = request.files['qr_image']
-
         if file.filename == '':
             flash('No file selected.', 'warning')
             return render_template('qr_scanner.html')
-
         if not QRCODE_AVAILABLE:
             flash('QR code scanning is not available. Please install required dependencies (Pillow, pyzbar).', 'danger')
             return render_template('qr_scanner.html')
-
         try:
             image = Image.open(file.stream)
             decoded_objects = decode(image)
-
             if not decoded_objects:
                 flash('No QR code found in the image.', 'warning')
                 return render_template('qr_scanner.html')
-
             qr_data = decoded_objects[0].data.decode('utf-8')
             is_url = qr_data.startswith(('http://', 'https://'))
-
             url_result = None
             confidence = None
-
             if is_url:
                 prediction = predict_url(qr_data)
                 url_result = prediction.get('result')
                 confidence = prediction.get('confidence')
-
             result = {
                 'qr_data': qr_data,
                 'is_url': is_url,
                 'url_result': url_result,
                 'confidence': confidence
             }
-
             db = get_db()
             cur = db.cursor()
             cur.execute('''
                 INSERT INTO qr_scans
                 (user_id, qr_data, is_url, url_result, confidence)
                 VALUES (%s, %s, %s, %s, %s)
-            ''', (
-                session['user_id'],
-                qr_data,
-                int(is_url),
-                url_result,
-                confidence
-            ))
+            ''', (session['user_id'], qr_data, int(is_url), url_result, confidence))
             db.commit()
-
+            cur.close()
         except Exception as e:
             logger.error(f"Error processing QR code: {e}")
             flash(f'Error processing image: {e}', 'danger')
-
     return render_template('qr_scanner.html', result=result)
-
 
 @app.route('/history')
 @login_required
 def history():
-    """View scan history."""
     db = get_db()
-    cur = db.cursor()
-
     search = request.args.get('search', '')
     filter_type = request.args.get('filter', 'all')
     page = request.args.get('page', 1, type=int)
     per_page = 20
-
     query = 'SELECT * FROM scans WHERE user_id = %s'
+    count_query = 'SELECT COUNT(*) as count FROM scans WHERE user_id = %s'
     params = [session['user_id']]
-
+    count_params = [session['user_id']]
     if search:
         query += ' AND url LIKE %s'
+        count_query += ' AND url LIKE %s'
         params.append(f'%{search}%')
-
+        count_params.append(f'%{search}%')
     if filter_type == 'phishing':
         query += " AND result = 'phishing'"
+        count_query += " AND result = 'phishing'"
     elif filter_type == 'legitimate':
         query += " AND result = 'legitimate'"
-
-    count_query = query.replace('SELECT *', 'SELECT COUNT(*) as count')
-    cur.execute(count_query, params)
+        count_query += " AND result = 'legitimate'"
+    cur = db.cursor()
+    cur.execute(count_query, count_params)
     total = cur.fetchone()['count']
-
     query += ' ORDER BY created_at DESC LIMIT %s OFFSET %s'
     params.extend([per_page, (page - 1) * per_page])
-
     cur.execute(query, params)
     scans = cur.fetchall()
-
+    cur.close()
     total_pages = (total + per_page - 1) // per_page
-
     return render_template(
         'history.html',
         scans=scans,
@@ -1542,11 +1373,9 @@ def history():
         total=total
     )
 
-
 @app.route('/history/export/csv')
 @login_required
 def export_history_csv():
-    """Export scan history as CSV."""
     db = get_db()
     cur = db.cursor()
     cur.execute('''
@@ -1556,11 +1385,10 @@ def export_history_csv():
         ORDER BY created_at DESC
     ''', (session['user_id'],))
     scans = cur.fetchall()
-
+    cur.close()
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(['URL', 'Result', 'Confidence (%)', 'Scan Type', 'Date'])
-
     for scan in scans:
         writer.writerow([
             scan['url'],
@@ -1569,7 +1397,6 @@ def export_history_csv():
             scan['scan_type'],
             scan['created_at']
         ])
-
     output.seek(0)
     return Response(
         output,
@@ -1577,27 +1404,16 @@ def export_history_csv():
         headers={'Content-Disposition': 'attachment; filename=scan_history.csv'}
     )
 
-
 @app.route('/history/export/pdf')
 @login_required
 def export_history_pdf():
-    """Export scan history as PDF report."""
-    try:
-        from reportlab.lib.pagesizes import letter
-        from reportlab.lib import colors
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-        from reportlab.lib.units import inch
-    except ImportError:
+    if not REPORTLAB_AVAILABLE:
         flash('PDF export not available. Please install reportlab.', 'warning')
         return redirect(url_for('history'))
-
     db = get_db()
     cur = db.cursor()
-
     cur.execute('SELECT * FROM users WHERE id = %s', (session['user_id'],))
     user = cur.fetchone()
-
     cur.execute('''
         SELECT url, result, confidence, scan_type, created_at
         FROM scans
@@ -1606,23 +1422,19 @@ def export_history_pdf():
         LIMIT 50
     ''', (session['user_id'],))
     scans = cur.fetchall()
-
+    cur.close()
     stats = get_user_stats(session['user_id'])
-
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=72)
     styles = getSampleStyleSheet()
     story = []
-
     title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=24, spaceAfter=30, textColor=colors.HexColor('#1a1a2e'))
     story.append(Paragraph("ShieldGuard Pro - Scan Report", title_style))
     story.append(Spacer(1, 10))
-
     story.append(Paragraph(f"<b>User:</b> {user['username']}", styles['Normal']))
     story.append(Paragraph(f"<b>Email:</b> {user['email']}", styles['Normal']))
     story.append(Paragraph(f"<b>Report Date:</b> {datetime.now().strftime('%Y-%m-%d %H:%M')}", styles['Normal']))
     story.append(Spacer(1, 20))
-
     story.append(Paragraph("<b>Summary Statistics</b>", styles['Heading2']))
     stats_data = [
         ['Total Scans', 'Phishing Detected', 'Safe URLs', 'Accuracy'],
@@ -1641,7 +1453,6 @@ def export_history_pdf():
     ]))
     story.append(t)
     story.append(Spacer(1, 30))
-
     story.append(Paragraph("<b>Recent Scans</b>", styles['Heading2']))
     scan_data = [['URL', 'Result', 'Confidence', 'Date']]
     for scan in scans:
@@ -1649,9 +1460,8 @@ def export_history_pdf():
             scan['url'][:40] + '...' if len(scan['url']) > 40 else scan['url'],
             scan['result'].upper(),
             f"{scan['confidence']:.1f}%",
-            str(scan['created_at'])[:10]
+            scan['created_at'][:10]
         ])
-
     if len(scan_data) > 1:
         t2 = Table(scan_data, colWidths=[2.5*inch, 1*inch, 1*inch, 1.2*inch])
         t2.setStyle(TableStyle([
@@ -1666,32 +1476,24 @@ def export_history_pdf():
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')])
         ]))
         story.append(t2)
-
     story.append(Spacer(1, 30))
     story.append(Paragraph("<i>Generated by ShieldGuard Pro - AI-Powered Phishing Detection</i>", styles['Normal']))
-
     doc.build(story)
     buffer.seek(0)
-
     return Response(
         buffer,
         mimetype='application/pdf',
         headers={'Content-Disposition': 'attachment; filename=scan_report.pdf'}
     )
 
-
 @app.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-    """User profile and settings."""
     db = get_db()
     cur = db.cursor()
-
     cur.execute('SELECT * FROM users WHERE id = %s', (session['user_id'],))
     user = cur.fetchone()
-
     stats = get_user_stats(session['user_id'])
-
     cur.execute('''
         SELECT * FROM bookmarks
         WHERE user_id = %s
@@ -1699,7 +1501,6 @@ def profile():
         LIMIT 10
     ''', (session['user_id'],))
     recent_bookmarks = cur.fetchall()
-
     cur.execute('''
         SELECT * FROM scans
         WHERE user_id = %s
@@ -1707,41 +1508,44 @@ def profile():
         LIMIT 10
     ''', (session['user_id'],))
     recent_scans = cur.fetchall()
-
+    cur.close()
     if request.method == 'POST':
         action = request.form.get('action')
-
         if action == 'update_profile':
             username = request.form.get('username', '').strip()
             email = request.form.get('email', '').strip().lower()
-
             if username and email:
                 if username != user['username']:
+                    cur = db.cursor()
                     cur.execute('SELECT id FROM users WHERE username = %s AND id != %s', (username, session['user_id']))
                     if cur.fetchone():
+                        cur.close()
                         flash('Username already taken.', 'danger')
                         return render_template('profile.html', user=user)
-
+                    cur.close()
                 if email != user['email']:
+                    cur = db.cursor()
                     cur.execute('SELECT id FROM users WHERE email = %s AND id != %s', (email, session['user_id']))
                     if cur.fetchone():
+                        cur.close()
                         flash('Email already registered.', 'danger')
                         return render_template('profile.html', user=user)
-
+                    cur.close()
+                cur = db.cursor()
                 cur.execute('UPDATE users SET username = %s, email = %s WHERE id = %s',
                            (username, email, session['user_id']))
                 db.commit()
+                cur.close()
                 session['username'] = username
                 flash('Profile updated successfully!', 'success')
-
+                cur = db.cursor()
                 cur.execute('SELECT * FROM users WHERE id = %s', (session['user_id'],))
                 user = cur.fetchone()
-
+                cur.close()
         elif action == 'change_password':
             current_password = request.form.get('current_password')
             new_password = request.form.get('new_password')
             confirm_password = request.form.get('confirm_password')
-
             if not check_password_hash(user['password'], current_password):
                 flash('Current password is incorrect.', 'danger')
             elif new_password != confirm_password:
@@ -1750,54 +1554,47 @@ def profile():
                 flash('Password must be at least 8 characters.', 'danger')
             else:
                 password_hash = generate_password_hash(new_password)
+                cur = db.cursor()
                 cur.execute('UPDATE users SET password = %s WHERE id = %s', (password_hash, session['user_id']))
                 db.commit()
+                cur.close()
                 flash('Password changed successfully!', 'success')
-
+        cur = db.cursor()
         cur.execute('SELECT * FROM users WHERE id = %s', (session['user_id'],))
         user = cur.fetchone()
-
+        cur.close()
     achievements = get_user_achievements(session['user_id'])
     total_possible = len(ACHIEVEMENTS)
     earned_count = len(achievements)
-
     return render_template('profile.html', user=user, stats=stats, recent_bookmarks=recent_bookmarks, recent_scans=recent_scans, achievements=achievements, total_achievements=total_possible, earned_achievements=earned_count)
-
 
 @app.route('/bookmarks')
 @login_required
 def bookmarks():
-    """View bookmarked URLs."""
     db = get_db()
-    cur = db.cursor()
     search = request.args.get('search', '')
     filter_type = request.args.get('filter', 'all')
     page = request.args.get('page', 1, type=int)
     per_page = 15
-
     query = 'SELECT * FROM bookmarks WHERE user_id = %s'
     params = [session['user_id']]
-
     if search:
         query += ' AND url LIKE %s'
         params.append(f'%{search}%')
-
     if filter_type == 'phishing':
         query += " AND result = 'phishing'"
     elif filter_type == 'legitimate':
         query += " AND result = 'legitimate'"
-
     count_query = query.replace('SELECT *', 'SELECT COUNT(*) as count')
+    cur = db.cursor()
     cur.execute(count_query, params)
     total = cur.fetchone()['count']
-
     query += ' ORDER BY created_at DESC LIMIT %s OFFSET %s'
     params.extend([per_page, (page - 1) * per_page])
-
     cur.execute(query, params)
     bookmarks_list = cur.fetchall()
+    cur.close()
     total_pages = (total + per_page - 1) // per_page
-
     return render_template(
         'bookmarks.html',
         bookmarks=bookmarks_list,
@@ -1808,16 +1605,13 @@ def bookmarks():
         total=total
     )
 
-
 @app.route('/bookmark/add', methods=['POST'])
 @login_required
 def add_bookmark():
-    """Add URL to bookmarks."""
     url = request.form.get('url', '').strip()
     result = request.form.get('result', '')
     confidence = request.form.get('confidence', 0)
     note = request.form.get('note', '')
-
     if url:
         db = get_db()
         cur = db.cursor()
@@ -1826,65 +1620,53 @@ def add_bookmark():
             VALUES (%s, %s, %s, %s, %s)
         ''', (session['user_id'], url, result, confidence, note))
         db.commit()
+        cur.close()
         flash('URL bookmarked successfully!', 'success')
-
     return redirect(request.referrer or url_for('dashboard'))
-
 
 @app.route('/bookmark/<int:bookmark_id>/delete', methods=['POST'])
 @login_required
 def delete_bookmark(bookmark_id):
-    """Delete a bookmark."""
     db = get_db()
     cur = db.cursor()
     cur.execute('DELETE FROM bookmarks WHERE id = %s AND user_id = %s',
                (bookmark_id, session['user_id']))
     db.commit()
+    cur.close()
     flash('Bookmark deleted.', 'success')
     return redirect(url_for('bookmarks'))
-
 
 @app.route('/bookmark/<int:bookmark_id>/rescan')
 @login_required
 def rescan_bookmark(bookmark_id):
-    """Rescan a bookmarked URL."""
     db = get_db()
     cur = db.cursor()
     cur.execute('SELECT * FROM bookmarks WHERE id = %s AND user_id = %s',
-               (bookmark_id, session['user_id']))
+                (bookmark_id, session['user_id']))
     bookmark = cur.fetchone()
-
+    cur.close()
     if bookmark:
         result = predict_url(bookmark['url'])
         save_scan(session['user_id'], bookmark['url'], result, 'rescan')
         flash(f'Rescan complete: {result["result"]} ({result["confidence"]}%)',
               'success' if result['result'] == 'legitimate' else 'warning')
-
     return redirect(url_for('bookmarks'))
-
 
 @app.route('/admin')
 @admin_required
 def admin():
-    """Admin dashboard."""
     db = get_db()
-    cur = db.cursor()
-
     search = request.args.get('search', '')
     user_filter = request.args.get('filter', 'all')
-
+    cur = db.cursor()
     cur.execute('SELECT COUNT(*) as count FROM users')
     total_users = cur.fetchone()['count']
-
     cur.execute('SELECT COUNT(*) as count FROM scans')
     total_scans = cur.fetchone()['count']
-
     cur.execute("SELECT COUNT(*) as count FROM scans WHERE result = 'phishing'")
     total_phishing = cur.fetchone()['count']
-
     cur.execute("SELECT COUNT(*) as count FROM scans WHERE result = 'legitimate'")
     total_legitimate = cur.fetchone()['count']
-
     query = '''
         SELECT u.*, COUNT(s.id) as scan_count
         FROM users u
@@ -1894,12 +1676,9 @@ def admin():
     if search:
         query += ' WHERE u.username LIKE %s OR u.email LIKE %s'
         params = [f'%{search}%', f'%{search}%']
-
     query += ' GROUP BY u.id ORDER BY u.created_at DESC'
-
     cur.execute(query, params)
     users = cur.fetchall()
-
     cur.execute('''
         SELECT s.*, u.username
         FROM scans s
@@ -1908,7 +1687,6 @@ def admin():
         LIMIT 50
     ''')
     recent_scans = cur.fetchall()
-
     cur.execute('''
         SELECT DATE(created_at) as date, COUNT(*) as count
         FROM scans
@@ -1917,16 +1695,14 @@ def admin():
         ORDER BY date DESC
     ''')
     scans_per_day = cur.fetchall()
-
     cur.execute('''
-        SELECT TO_CHAR(created_at, 'YYYY-MM') as month, COUNT(*) as count
+        SELECT to_char(created_at, 'YYYY-MM') as month, COUNT(*) as count
         FROM scans
         WHERE created_at >= CURRENT_DATE - INTERVAL '6 months'
-        GROUP BY TO_CHAR(created_at, 'YYYY-MM')
+        GROUP BY to_char(created_at, 'YYYY-MM')
         ORDER BY month DESC
     ''')
     scans_per_month = cur.fetchall()
-
     cur.execute('''
         SELECT u.id, u.username, COUNT(s.id) as scan_count
         FROM users u
@@ -1936,19 +1712,17 @@ def admin():
         LIMIT 5
     ''')
     top_users = cur.fetchall()
-
     cur.execute('''
         SELECT COUNT(*) as count FROM users
         WHERE DATE(created_at) = CURRENT_DATE
     ''')
     new_users_today = cur.fetchone()['count']
-
     cur.execute('''
         SELECT COUNT(*) as count FROM scans
         WHERE DATE(created_at) = CURRENT_DATE
     ''')
     scans_today = cur.fetchone()['count']
-
+    cur.close()
     return render_template(
         'admin.html',
         total_users=total_users,
@@ -1965,71 +1739,57 @@ def admin():
         search=search
     )
 
-
 @app.route('/admin/user/<int:user_id>/delete', methods=['POST'])
 @admin_required
 def admin_delete_user(user_id):
-    """Delete a user."""
     if user_id == session['user_id']:
         flash('You cannot delete your own account.', 'danger')
         return redirect(url_for('admin'))
-
     db = get_db()
     cur = db.cursor()
     cur.execute('DELETE FROM users WHERE id = %s', (user_id,))
     db.commit()
-
+    cur.close()
     flash('User deleted successfully.', 'success')
     return redirect(url_for('admin'))
-
 
 @app.route('/admin/user/<int:user_id>/toggle_admin', methods=['POST'])
 @admin_required
 def admin_toggle_admin(user_id):
-    """Toggle admin status for a user."""
     db = get_db()
     cur = db.cursor()
     cur.execute('SELECT is_admin FROM users WHERE id = %s', (user_id,))
     user = cur.fetchone()
-
     if user:
         new_status = 0 if user['is_admin'] else 1
         cur.execute('UPDATE users SET is_admin = %s WHERE id = %s', (new_status, user_id))
         db.commit()
         flash('User admin status updated.', 'success')
-
+    cur.close()
     return redirect(url_for('admin'))
-
 
 @app.route('/admin/user/<int:user_id>')
 @admin_required
 def admin_user_detail(user_id):
-    """View user details and scan history."""
     db = get_db()
     cur = db.cursor()
-
     cur.execute('SELECT * FROM users WHERE id = %s', (user_id,))
     user = cur.fetchone()
-
     if not user:
+        cur.close()
         flash('User not found.', 'danger')
         return redirect(url_for('admin'))
-
     cur.execute('SELECT COUNT(*) as count FROM scans WHERE user_id = %s', (user_id,))
     total_scans = cur.fetchone()['count']
-
     cur.execute("SELECT COUNT(*) as count FROM scans WHERE user_id = %s AND result = 'phishing'", (user_id,))
     phishing_count = cur.fetchone()['count']
-
     cur.execute("SELECT COUNT(*) as count FROM scans WHERE user_id = %s AND result = 'legitimate'", (user_id,))
     safe_count = cur.fetchone()['count']
-
     stats = {
         'total_scans': total_scans,
         'phishing_count': phishing_count,
         'safe_count': safe_count
     }
-
     cur.execute('''
         SELECT * FROM scans
         WHERE user_id = %s
@@ -2037,7 +1797,7 @@ def admin_user_detail(user_id):
         LIMIT 50
     ''', (user_id,))
     scans = cur.fetchall()
-
+    cur.close()
     return render_template(
         'admin_user_detail.html',
         user=user,
@@ -2045,44 +1805,37 @@ def admin_user_detail(user_id):
         scans=scans
     )
 
-
 @app.route('/about')
 def about():
-    """About page."""
     return render_template('about.html')
-
 
 @app.route('/help')
 def help_page():
-    """Help and FAQ page."""
     return render_template('help.html')
 
-
-# ============================================================================
-# API ROUTES
-# ============================================================================
+@app.route('/healthz')
+@limiter.exempt
+def healthz():
+    return jsonify({'status': 'ok'}), 200
 
 @app.route('/api/check_url', methods=['POST'])
+@jwt_required()
+@api_user_rate_limit
 def api_check_url():
-    """API endpoint to check a single URL."""
     data = request.get_json()
-
     if not data:
         return jsonify({'error': 'No data provided'}), 400
-
     url = data.get('url', '').strip()
-
     if not url:
         return jsonify({'error': 'URL is required'}), 400
-
     if not url.startswith(('http://', 'https://')):
         return jsonify({'error': 'Invalid URL format. URL must start with http:// or https://'}), 400
-
     result = predict_url(url)
-
     if 'error' in result:
         return jsonify({'error': result['error']}), 500
-
+    user_id = get_jwt_identity()
+    if user_id:
+        save_scan(int(user_id), url, result, 'api')
     return jsonify({
         'url': url,
         'result': result['result'],
@@ -2092,28 +1845,118 @@ def api_check_url():
         'features': result['features']
     })
 
-
-@app.route('/api/batch_check', methods=['POST'])
-def api_batch_check():
-    """API endpoint to check multiple URLs."""
+@app.route('/api/register', methods=['POST'])
+def api_register():
     data = request.get_json()
-
     if not data:
         return jsonify({'error': 'No data provided'}), 400
 
-    urls = data.get('urls', [])
+    username = data.get('username', '').strip()
+    email = data.get('email', '').strip().lower()
+    password = data.get('password', '')
+    confirm_password = data.get('confirm_password', password)
 
+    if not username or not email or not password:
+        return jsonify({'error': 'username, email, and password are required'}), 400
+    if password != confirm_password:
+        return jsonify({'error': 'Passwords do not match'}), 400
+    password_error = validate_password_strength(password)
+    if password_error:
+        return jsonify({'error': password_error}), 400
+    if not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
+        return jsonify({'error': 'Please enter a valid email address'}), 400
+
+    db = get_db()
+    cur = db.cursor()
+    cur.execute('SELECT id FROM users WHERE username = %s', (username,))
+    if cur.fetchone():
+        cur.close()
+        return jsonify({'error': 'Username already taken'}), 409
+    cur.execute('SELECT id FROM users WHERE email = %s', (email,))
+    if cur.fetchone():
+        cur.close()
+        return jsonify({'error': 'Email already registered'}), 409
+
+    password_hash = generate_password_hash(password)
+    cur.execute('''
+        INSERT INTO users (username, email, password)
+        VALUES (%s, %s, %s)
+        RETURNING id, username, email, is_admin, created_at
+    ''', (username, email, password_hash))
+    user = cur.fetchone()
+    db.commit()
+    cur.close()
+
+    access_token = create_access_token(identity=str(user['id']))
+    return jsonify({
+        'message': 'Account created successfully',
+        'access_token': access_token,
+        'token_type': 'Bearer',
+        'expires_in': 86400,
+        'user': {
+            'id': user['id'],
+            'username': user['username'],
+            'email': user['email'],
+            'is_admin': bool(user['is_admin']),
+        }
+    }), 201
+
+@app.route('/api/login', methods=['POST'])
+@login_rate_limit
+def api_login():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+    if not username or not password:
+        return jsonify({'error': 'username and password are required'}), 400
+
+    db = get_db()
+    cur = db.cursor()
+    cur.execute('SELECT * FROM users WHERE username = %s', (username,))
+    user = cur.fetchone()
+    if not user or not check_password_hash(user['password'], password):
+        cur.close()
+        return jsonify({'error': 'Invalid username or password'}), 401
+
+    cur.execute('UPDATE users SET last_login = %s WHERE id = %s', (datetime.now(), user['id']))
+    db.commit()
+    cur.close()
+
+    access_token = create_access_token(identity=str(user['id']))
+    return jsonify({
+        'access_token': access_token,
+        'token_type': 'Bearer',
+        'expires_in': 86400,
+        'user': {
+            'id': user['id'],
+            'username': user['username'],
+            'email': user['email'],
+            'is_admin': bool(user['is_admin']),
+        }
+    })
+
+@app.route('/api/batch_check', methods=['POST'])
+@jwt_required()
+@api_user_rate_limit
+def api_batch_check():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    urls = data.get('urls', [])
     if not urls or not isinstance(urls, list):
         return jsonify({'error': 'URLs array is required'}), 400
-
     if len(urls) > 100:
         return jsonify({'error': 'Maximum 100 URLs allowed per request'}), 400
-
     results = []
-
+    user_id = get_jwt_identity()
     for url in urls:
         if url.startswith(('http://', 'https://')):
             prediction = predict_url(url)
+            if user_id and 'error' not in prediction:
+                save_scan(int(user_id), url, prediction, 'api_batch')
             results.append({
                 'url': url,
                 'result': prediction.get('result'),
@@ -2127,74 +1970,76 @@ def api_batch_check():
                 'url': url,
                 'error': 'Invalid URL format'
             })
-
     return jsonify({
         'total': len(urls),
         'results': results
     })
 
-
 @app.route('/api/stats')
 def api_stats():
-    """API endpoint to get system statistics."""
     db = get_db()
     cur = db.cursor()
-
     cur.execute('SELECT COUNT(*) as count FROM users')
     total_users = cur.fetchone()['count']
-
     cur.execute('SELECT COUNT(*) as count FROM scans')
     total_scans = cur.fetchone()['count']
-
     cur.execute("SELECT COUNT(*) as count FROM scans WHERE result = 'phishing'")
     phishing_detected = cur.fetchone()['count']
-
     cur.execute("SELECT COUNT(*) as count FROM scans WHERE result = 'legitimate'")
     legitimate_detected = cur.fetchone()['count']
-
+    cur.close()
     stats = {
         'total_users': total_users,
         'total_scans': total_scans,
         'phishing_detected': phishing_detected,
         'legitimate_detected': legitimate_detected
     }
-
     return jsonify(stats)
-
-
-# ============================================================================
-# ERROR HANDLERS
-# ============================================================================
 
 @app.errorhandler(404)
 def not_found_error(error):
-    """Handle 404 errors."""
     if request.is_json:
         return jsonify({'error': 'Not found'}), 404
     flash('Page not found.', 'warning')
     return redirect(url_for('index'))
 
-
 @app.errorhandler(500)
 def internal_error(error):
-    """Handle 500 errors."""
     logger.error(f"Internal server error: {error}")
     if request.is_json:
         return jsonify({'error': 'Internal server error'}), 500
     flash('An internal error occurred. Please try again.', 'danger')
     return redirect(url_for('index'))
 
-
 @app.errorhandler(413)
 def too_large(error):
-    """Handle file too large error."""
     flash('File too large. Maximum size is 16MB.', 'danger')
     return redirect(request.url)
 
+@app.errorhandler(429)
+def ratelimit_handler(error):
+    response = jsonify({
+        'error': 'Too Many Requests',
+        'message': 'Rate limit exceeded. Please retry later.'
+    })
+    response.status_code = 429
+    if hasattr(error, 'get_response'):
+        default_response = error.get_response()
+        retry_after = default_response.headers.get('Retry-After')
+        if retry_after:
+            response.headers['Retry-After'] = retry_after
+    return response
 
-# ============================================================================
+@app.context_processor
+def inject_globals():
+    return {
+        'now': datetime.now(),
+        'datetime': datetime,
+        'app_name': 'ShieldGuard Pro',
+        'version': '1.0.0'
+    }
+
 # MULTI-LANGUAGE SUPPORT
-# ============================================================================
 
 TRANSLATIONS = {
     'hi': {
@@ -2215,68 +2060,37 @@ TRANSLATIONS = {
         'admin': 'एडमिन',
         'about': 'के बारे में',
         'help': 'मदद',
-        'shieldguard_pro': 'शील्डगार्ड प्रो',
-        'scan_now': 'अभी स्कैन करें',
-        'welcome_back': 'वापसी पर स्वागत है',
-        'email': 'ईमेल',
-        'password': 'पासवर्ड',
-        'url': 'URL',
-        'results': 'परिणाम',
-        'safe': 'सुरक्षित',
-        'phishing': 'फ़िशिंग',
-        'confidence': 'विश्वास',
-        'scan_results': 'स्कैन परिणाम',
-        'features': 'विशेषताएं',
     }
 }
 
-
 def get_translation(key, lang='en'):
-    """Get translation for a given language."""
     return TRANSLATIONS.get(lang, {}).get(key, key)
 
-
 @app.context_processor
-def inject_globals():
-    """Inject global variables into templates."""
-    lang = session.get('lang', 'en')
+def inject_language():
+    lang = request.args.get('lang', 'en')
     if lang not in TRANSLATIONS:
         lang = 'en'
     return {
-        'now': datetime.now(),
-        'datetime': datetime,
-        'app_name': 'ShieldGuard Pro',
-        'version': '1.0.0',
         'current_lang': lang,
         't': lambda key: get_translation(key, lang)
     }
 
-
-@app.before_request
-def store_language():
-    """Ensure lang is in session."""
-    if 'lang' not in session:
-        session['lang'] = 'en'
-
-
 @app.route('/set_lang/<lang>')
 def set_lang(lang):
-    """Set language via URL and redirect."""
     if lang not in TRANSLATIONS:
         lang = 'en'
-    session['lang'] = lang
     ref = request.referrer or url_for('index')
+    if '?' in ref:
+        ref = ref + f'&lang={lang}'
+    else:
+        ref = ref + f'?lang={lang}'
     return redirect(ref)
 
-
-# ============================================================================
-# MAIN
-# ============================================================================
 
 if __name__ == '__main__':
     with app.app_context():
         init_db()
-
     app.run(
         host='0.0.0.0',
         port=5000,
