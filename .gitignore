@@ -63,3 +63,10 @@ screenshots/
 
 # Jupyter
 .ipynb_checkpoints/
+
+.env
+*.db
+__pycache__/
+*.pyc
+venv/
+uploads/
