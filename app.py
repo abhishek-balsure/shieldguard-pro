@@ -430,6 +430,19 @@ def init_db():
             oauth_provider_id TEXT
         )
     ''')
+    
+    # Add OAuth columns if they don't exist (for existing tables)
+    cur.execute('''
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'oauth_provider') THEN
+                ALTER TABLE users ADD COLUMN oauth_provider TEXT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'oauth_provider_id') THEN
+                ALTER TABLE users ADD COLUMN oauth_provider_id TEXT;
+            END IF;
+        END $$;
+    ''')
 
     cur.execute('''
         CREATE TABLE IF NOT EXISTS scans (
@@ -544,12 +557,22 @@ def init_db():
     cur.execute('''
         CREATE TABLE IF NOT EXISTS login_attempts (
             id SERIAL PRIMARY KEY,
-            ip_address TEXT NOT NULL,
+            ip_address TEXT UNIQUE NOT NULL,
             username TEXT,
             attempts INTEGER DEFAULT 1,
             locked_until TIMESTAMP,
             last_attempt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
+    ''')
+    
+    # Create unique index if it doesn't exist (for existing tables)
+    cur.execute('''
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'login_attempts_ip_address_key') THEN
+                ALTER TABLE login_attempts ADD CONSTRAINT login_attempts_ip_address_key UNIQUE (ip_address);
+            END IF;
+        END $$;
     ''')
 
     cur.execute('''
