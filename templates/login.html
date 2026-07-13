@@ -588,6 +588,38 @@
         border-color: #3d3d5c;
     }
 
+    body.dark-mode .auth-footer p {
+        color: #94a3b8;
+    }
+
+    body.dark-mode .auth-footer a {
+        color: var(--bright-blue);
+    }
+
+    body.dark-mode .divider span {
+        color: #94a3b8;
+    }
+
+    body.dark-mode .btn-social {
+        background: #2d2d3f;
+        border-color: #3d3d5c;
+        color: #e0e0e0;
+    }
+
+    body.dark-mode .btn-social:hover {
+        border-color: var(--bright-blue);
+        background: rgba(0, 171, 228, 0.15);
+        color: white;
+    }
+
+    body.dark-mode .form-label {
+        color: #f1f5f9;
+    }
+
+    body.dark-mode .forgot-link {
+        color: var(--bright-blue);
+    }
+
     body.dark-mode .divider::before,
     body.dark-mode .divider::after {
         background: #3d3d5c;
@@ -780,10 +812,24 @@ function togglePassword(inputId, iconBtn) {
     }
 }
 
-// Social login placeholder
+// Social login - redirect to OAuth providers
 function socialLogin(provider) {
-    showToast('info', 'Coming Soon', `${provider.charAt(0).toUpperCase() + provider.slice(1)} OAuth login will be available soon!`);
+    window.location.href = '{{ url_for("login_google") if false }}';
+    // Actual redirect handled by onclick
 }
+
+// Direct OAuth login handlers
+document.querySelectorAll('.btn-social').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const provider = this.textContent.trim().toLowerCase();
+        if (provider === 'google') {
+            window.location.href = '{{ url_for("login_google") }}';
+        } else if (provider === 'github') {
+            window.location.href = '{{ url_for("login_github") }}';
+        }
+    });
+});
 
 // Form submission with loading state
 document.getElementById('loginForm').addEventListener('submit', function(e) {

@@ -7,13 +7,13 @@
     .admin-container {
         display: flex;
         min-height: calc(100vh - 72px);
-        background: var(--ivory);
+        background: var(--bg-primary);
     }
 
     .admin-sidebar {
         width: 240px;
         flex-shrink: 0;
-        background: var(--white);
+        background: var(--bg-card);
         border-right: 1px solid var(--border-color);
         padding: 1.5rem 0;
         display: flex;
@@ -21,7 +21,7 @@
     }
 
     .admin-sidebar h6 {
-        color: var(--text-muted);
+        color: var(--text-secondary);
         font-size: 0.7rem;
         text-transform: uppercase;
         letter-spacing: 1px;
@@ -33,7 +33,7 @@
         flex-grow: 1;
         padding: 2rem;
         overflow-y: auto;
-        background: var(--ivory);
+        background: var(--bg-primary);
     }
 
     .admin-nav .nav-link {
@@ -54,14 +54,14 @@
     }
 
     .admin-nav .nav-link:hover {
-        background: var(--accent-light);
-        color: var(--accent) !important;
+        background: rgba(0, 171, 228, 0.1);
+        color: var(--bright-blue) !important;
     }
 
     .admin-nav .nav-link.active {
-        background: var(--accent-light);
-        color: var(--accent) !important;
-        border-left-color: var(--accent);
+        background: rgba(0, 171, 228, 0.1);
+        color: var(--bright-blue) !important;
+        border-left-color: var(--bright-blue);
     }
 
     .admin-nav .nav-link i {
@@ -77,7 +77,7 @@
     }
 
     .stat-card-admin:hover {
-        border-color: var(--accent);
+        border-color: var(--bright-blue);
         box-shadow: var(--shadow-md);
     }
 
@@ -108,7 +108,7 @@
         width: 32px;
         height: 32px;
         border-radius: var(--radius-sm);
-        background: linear-gradient(135deg, var(--accent), var(--success));
+        background: linear-gradient(135deg, var(--bright-blue), var(--green));
         display: flex;
         align-items: center;
         justify-content: center;
@@ -164,7 +164,7 @@
             border-left: none;
             border-bottom: 3px solid transparent;
         }
-        .admin-nav .nav-link.active { border-bottom-color: var(--accent); }
+        .admin-nav .nav-link.active { border-bottom-color: var(--bright-blue); }
     }
 
     @media (max-width: 768px) {
