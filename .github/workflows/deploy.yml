@@ -60,11 +60,11 @@ jobs:
           script: |
             cat > ~/.env << 'EOF'
             SECRET_KEY=${{ secrets.SECRET_KEY }}
-            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@db:5432/${{ secrets.POSTGRES_DB }}
             JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
-            REDIS_URL=redis://shieldguard-redis:6379
-            POSTGRES_DB=shieldguarddb
-            POSTGRES_USER=shieldguard
+            REDIS_URL=redis://redis:6379/0
+            POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+            POSTGRES_USER=${{ secrets.POSTGRES_USER }}
             POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
             EOF
 
