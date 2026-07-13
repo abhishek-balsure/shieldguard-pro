@@ -636,9 +636,6 @@
             {% endwith %}
 
             <form method="POST" action="{{ url_for('login') }}" id="loginForm" novalidate>
-                <!-- CSRF Token -->
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
                 <!-- Username -->
                 <div class="form-group">
                     <label class="form-label">

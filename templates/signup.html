@@ -368,9 +368,6 @@
 
         <div class="auth-body">
             <form method="POST" action="{{ url_for('signup') }}" id="signupForm" novalidate>
-                <!-- CSRF Token -->
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
                 <div class="row g-3">
                     <!-- Username -->
                     <div class="col-md-6">

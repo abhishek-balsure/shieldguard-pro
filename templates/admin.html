@@ -485,7 +485,6 @@ document.getElementById('userSearch').addEventListener('input', function(e) {
                                                 <i class="bi bi-shield"></i>
                                             </a>
                                             <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" style="display:inline;" onsubmit="return confirm('Delete user {{ user.username }}?')">
-                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                 <button type="submit" class="btn btn-outline-danger" title="Delete User">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
