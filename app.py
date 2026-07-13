@@ -268,6 +268,39 @@ def init_db():
         )
     ''')
 
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS login_history (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id),
+            ip_address TEXT,
+            user_agent TEXT,
+            success INTEGER DEFAULT 0,
+            login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS login_attempts (
+            id SERIAL PRIMARY KEY,
+            ip_address TEXT NOT NULL,
+            username TEXT,
+            attempts INTEGER DEFAULT 1,
+            locked_until TIMESTAMP,
+            last_attempt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS password_resets (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id),
+            reset_token TEXT UNIQUE,
+            expires_at TIMESTAMP,
+            used INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
     admin_hash = generate_password_hash('admin123')
     cur.execute('''
         INSERT INTO users (username, email, password, is_admin)
@@ -855,29 +888,97 @@ def quick_check():
 def login():
     if 'user_id' in session:
         return redirect(url_for('profile'))
+    
+    # Check for account lockout
+    ip_address = request.remote_addr
+    db = get_db()
+    cur = db.cursor()
+    cur.execute('''
+        SELECT attempts, locked_until FROM login_attempts 
+        WHERE ip_address = %s AND locked_until > NOW()
+    ''', (ip_address,))
+    lockout = cur.fetchone()
+    if lockout:
+        remaining = (lockout['locked_until'] - datetime.now()).seconds
+        cur.close()
+        flash(f'Account locked. Try again in {remaining // 60 + 1} minutes.', 'danger')
+        return render_template('login.html', locked=True, remaining_time=remaining)
+    
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
+        remember_me = request.form.get('remember_me') == '1'
+        
         if not username or not password:
             flash('Please enter both username and password.', 'danger')
             return render_template('login.html')
-        db = get_db()
-        cur = db.cursor()
+        
         cur.execute('SELECT * FROM users WHERE username = %s', (username,))
         user = cur.fetchone()
-        cur.close()
+        
         if user and check_password_hash(user['password'], password):
+            # Successful login - reset attempts and log
+            cur.execute('DELETE FROM login_attempts WHERE ip_address = %s', (ip_address,))
+            
+            # Record successful login
+            cur.execute('''
+                INSERT INTO login_history (user_id, ip_address, user_agent, success)
+                VALUES (%s, %s, %s, 1)
+            ''', (user['id'], ip_address, request.user_agent.string))
+            
+            # Update last login
+            cur.execute('UPDATE users SET last_login = %s WHERE id = %s', (datetime.now(), user['id']))
+            db.commit()
+            
+            # Set session
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['is_admin'] = bool(user['is_admin'])
-            cur = db.cursor()
-            cur.execute('UPDATE users SET last_login = %s WHERE id = %s', (datetime.now(), user['id']))
-            db.commit()
-            cur.close()
+            session.permanent = remember_me
+            
+            if remember_me:
+                app.permanent_session_lifetime = timedelta(days=14)
+            else:
+                app.permanent_session_lifetime = timedelta(hours=24)
+            
             flash(f'Welcome back, {username}!', 'success')
             return redirect(url_for('dashboard'))
         else:
-            flash('Invalid username or password.', 'danger')
+            # Failed login attempt
+            if user:
+                # Record failed attempt for this user
+                cur.execute('''
+                    INSERT INTO login_history (user_id, ip_address, user_agent, success)
+                    VALUES (%s, %s, %s, 0)
+                ''', (user['id'], ip_address, request.user_agent.string))
+            
+            # Track attempts from this IP
+            cur.execute('''
+                INSERT INTO login_attempts (ip_address, username, attempts, last_attempt)
+                VALUES (%s, %s, 1, NOW())
+                ON CONFLICT (ip_address) DO UPDATE SET
+                    attempts = login_attempts.attempts + 1,
+                    last_attempt = NOW()
+            ''', (ip_address, username))
+            
+            # Lock after 5 failed attempts
+            cur.execute('SELECT attempts FROM login_attempts WHERE ip_address = %s', (ip_address,))
+            attempt_count = cur.fetchone()
+            if attempt_count and attempt_count['attempts'] >= 5:
+                cur.execute('''
+                    UPDATE login_attempts SET locked_until = NOW() + INTERVAL '15 minutes'
+                    WHERE ip_address = %s
+                ''', (ip_address,))
+                flash('Too many failed attempts. Account locked for 15 minutes.', 'danger')
+            else:
+                remaining = 5 - (attempt_count['attempts'] if attempt_count else 1)
+                flash(f'Invalid credentials. {remaining} attempts remaining.', 'danger')
+            
+            db.commit()
+            cur.close()
+            return render_template('login.html')
+    
+    cur.close()
     return render_template('login.html')
 
 @app.route('/signup', methods=['GET', 'POST'])
@@ -931,6 +1032,99 @@ def logout():
     flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
 
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        
+        if not email:
+            flash('Please enter your email address.', 'danger')
+            return render_template('forgot_password.html')
+        
+        db = get_db()
+        cur = db.cursor()
+        
+        # Check if user exists
+        cur.execute('SELECT id, username FROM users WHERE email = %s', (email,))
+        user = cur.fetchone()
+        
+        if user:
+            # Generate reset token
+            reset_token = secrets.token_urlsafe(32)
+            expires_at = datetime.now() + timedelta(hours=1)
+            
+            # Store reset token
+            cur.execute('''
+                INSERT INTO password_resets (user_id, reset_token, expires_at)
+                VALUES (%s, %s, %s)
+            ''', (user['id'], reset_token, expires_at))
+            db.commit()
+            
+            # In production, send email here
+            # For now, we'll show the token in flash message (demo only)
+            flash(f'Password reset link sent to {email}. (Demo: token={reset_token})', 'success')
+            logger.info(f"Password reset requested for {email}, token: {reset_token[:20]}...")
+        else:
+            # Don't reveal if email exists for security
+            flash('If that email exists, a reset link has been sent.', 'info')
+        
+        cur.close()
+        return redirect(url_for('login'))
+    
+    return render_template('forgot_password.html')
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+    
+    db = get_db()
+    cur = db.cursor()
+    
+    # Verify token
+    cur.execute('''
+        SELECT pr.*, u.username FROM password_resets pr
+        JOIN users u ON pr.user_id = u.id
+        WHERE pr.reset_token = %s AND pr.used = 0 AND pr.expires_at > NOW()
+    ''', (token,))
+    reset_request = cur.fetchone()
+    
+    if not reset_request:
+        cur.close()
+        flash('Invalid or expired reset token.', 'danger')
+        return redirect(url_for('forgot_password'))
+    
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        
+        if password != confirm_password:
+            flash('Passwords do not match.', 'danger')
+            return render_template('reset_password.html', token=token)
+        
+        password_error = validate_password_strength(password)
+        if password_error:
+            flash(password_error, 'danger')
+            return render_template('reset_password.html', token=token)
+        
+        # Update password
+        password_hash = generate_password_hash(password)
+        cur.execute('UPDATE users SET password = %s WHERE id = %s', (password_hash, reset_request['user_id']))
+        
+        # Mark token as used
+        cur.execute('UPDATE password_resets SET used = 1 WHERE id = %s', (reset_request['id'],))
+        db.commit()
+        cur.close()
+        
+        flash('Password updated successfully. Please log in.', 'success')
+        return redirect(url_for('login'))
+    
+    cur.close()
+    return render_template('reset_password.html', token=token, username=reset_request['username'])
+
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -952,7 +1146,64 @@ def dashboard():
     ''', (session['user_id'],))
     recent_bookmarks = cur.fetchall()
 
+    # Calculate security score
+    total_scans = stats.get('total_scans', 0)
+    safe_scans = stats.get('safe_count', 0)
+    threats_blocked = stats.get('phishing_count', 0)
+    
+    # Base score on detection rate
+    if total_scans > 0:
+        detection_rate = (threats_blocked / total_scans) * 100
+        activity_score = min(total_scans * 2, 40)  # Max 40 points for activity
+        detection_score = min(detection_rate * 0.6, 60)  # Max 60 points for detection
+        security_score = int(activity_score + detection_score)
+    else:
+        security_score = 50  # Default score for new users
+    
+    # Weekly change calculation
     today = datetime.now()
+    week_ago = today - timedelta(days=7)
+    cur.execute('''
+        SELECT COUNT(*) FROM scans
+        WHERE user_id = %s AND created_at >= %s
+    ''', (session['user_id'], week_ago))
+    week_scans = (cur.fetchone() or {}).get('count', 0)
+    
+    prev_week_start = today - timedelta(days=14)
+    prev_week_end = week_ago
+    cur.execute('''
+        SELECT COUNT(*) FROM scans
+        WHERE user_id = %s AND created_at >= %s AND created_at < %s
+    ''', (session['user_id'], prev_week_start, prev_week_end))
+    prev_week_scans = (cur.fetchone() or {}).get('count', 0)
+    
+    if prev_week_scans > 0:
+        scan_change = int(((week_scans - prev_week_scans) / prev_week_scans) * 100)
+    else:
+        scan_change = 100 if week_scans > 0 else 0
+    
+    # Today's scans
+    today_str = today.strftime('%Y-%m-%d')
+    cur.execute('''
+        SELECT COUNT(*) FROM scans
+        WHERE user_id = %s AND DATE(created_at) = %s
+    ''', (session['user_id'], today_str))
+    recent_scans_count = (cur.fetchone() or {}).get('count', 0)
+
+    # Recent activity for template
+    recent_activity = []
+    for scan in recent_scans[:5]:
+        recent_activity.append({
+            'url': scan['url'],
+            'is_malicious': scan['result'] == 'phishing',
+            'timestamp': scan['created_at'].strftime('%b %d, %H:%M') if scan['created_at'] else 'N/A'
+        })
+
+    # User badges
+    cur.execute('SELECT * FROM achievements WHERE user_id = %s ORDER BY earned_at DESC LIMIT 5', (session['user_id'],))
+    badges = cur.fetchall()
+    user_badges = [{'name': b['badge_name'], 'icon': b['badge_icon']} for b in badges]
+
     dates = [(today - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(6, -1, -1)]
     date_labels = [(today - timedelta(days=i)).strftime('%b %d') for i in range(6, -1, -1)]
     url_activity = []
@@ -983,6 +1234,7 @@ def dashboard():
         qr_activity.append(qr_count)
 
     cur.close()
+    
     return render_template(
         'dashboard.html',
         stats=stats,
@@ -992,7 +1244,16 @@ def dashboard():
         activity_labels=date_labels,
         url_activity=url_activity,
         email_activity=email_activity,
-        qr_activity=qr_activity
+        qr_activity=qr_activity,
+        total_scans=total_scans,
+        safe_scans=safe_scans,
+        threats_blocked=threats_blocked,
+        recent_scans=recent_scans_count,
+        scan_change=scan_change,
+        security_score=security_score,
+        recent_activity=recent_activity,
+        user_badges=user_badges,
+        current_date=today.strftime('%B %d, %Y')
     )
 
 @app.route('/check_url', methods=['GET', 'POST'])
@@ -1751,6 +2012,46 @@ def admin_delete_user(user_id):
     db.commit()
     cur.close()
     flash('User deleted successfully.', 'success')
+    return redirect(url_for('admin'))
+
+@app.route('/admin/toggle-admin/<int:user_id>', methods=['POST'])
+@admin_required
+def toggle_admin(user_id):
+    if user_id == session['user_id']:
+        flash('You cannot modify your own admin status.', 'danger')
+        return redirect(url_for('admin'))
+    db = get_db()
+    cur = db.cursor()
+    cur.execute('SELECT is_admin FROM users WHERE id = %s', (user_id,))
+    user = cur.fetchone()
+    if user:
+        new_status = 0 if user['is_admin'] else 1
+        cur.execute('UPDATE users SET is_admin = %s WHERE id = %s', (new_status, user_id))
+        db.commit()
+        status = 'promoted to admin' if new_status else 'removed from admin'
+        flash(f'User {status}.', 'success')
+    else:
+        flash('User not found.', 'danger')
+    cur.close()
+    return redirect(url_for('admin'))
+
+@app.route('/admin/delete-user/<int:user_id>', methods=['POST'])
+@admin_required
+def delete_user(user_id):
+    if user_id == session['user_id']:
+        flash('You cannot delete your own account.', 'danger')
+        return redirect(url_for('admin'))
+    db = get_db()
+    cur = db.cursor()
+    # Delete related records first
+    cur.execute('DELETE FROM scans WHERE user_id = %s', (user_id,))
+    cur.execute('DELETE FROM bookmarks WHERE user_id = %s', (user_id,))
+    cur.execute('DELETE FROM achievements WHERE user_id = %s', (user_id,))
+    cur.execute('DELETE FROM login_history WHERE user_id = %s', (user_id,))
+    cur.execute('DELETE FROM users WHERE id = %s', (user_id,))
+    db.commit()
+    cur.close()
+    flash('User and all related data deleted.', 'success')
     return redirect(url_for('admin'))
 
 @app.route('/admin/user/<int:user_id>/toggle_admin', methods=['POST'])

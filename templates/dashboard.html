@@ -4,208 +4,770 @@
 
 {% block extra_css %}
 <style>
-    .dashboard-hero {
-        padding: 1.5rem;
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        margin-bottom: 1.5rem;
+    .dashboard-header {
+        background: linear-gradient(135deg, var(--bright-blue), var(--green));
+        border-radius: var(--radius-xl);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
     }
 
-    .action-grid-card {
+    .dashboard-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 60%;
+        height: 200%;
+        background: radial-gradient(ellipse at center, rgba(255,255,255,0.15) 0%, transparent 60%);
+    }
+
+    .dashboard-header h1 {
+        color: white;
+        font-size: 1.75rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .dashboard-header p {
+        color: rgba(255,255,255,0.9);
+        margin: 0;
+    }
+
+    .user-welcome {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .user-welcome-avatar {
+        width: 50px;
+        height: 50px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    .user-welcome-info h4 {
+        color: white;
+        margin-bottom: 0.15rem;
+    }
+
+    .user-welcome-info span {
+        color: rgba(255,255,255,0.8);
+        font-size: 0.9rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.25rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: var(--white);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    body.dark-mode .stat-card {
+        background: #1e293b;
+        border-color: #334155;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--bright-blue), var(--green));
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-blue);
+        border-color: var(--bright-blue);
+    }
+
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        background: var(--light-blue);
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        font-size: 1.5rem;
+        color: var(--bright-blue);
+        transition: all 0.3s ease;
+    }
+
+    body.dark-mode .stat-icon {
+        background: rgba(0, 171, 228, 0.2);
+    }
+
+    .stat-card:hover .stat-icon {
+        background: linear-gradient(135deg, var(--bright-blue), var(--green));
+        color: white;
+        transform: scale(1.1);
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--gray-800);
+        line-height: 1.2;
+    }
+
+    body.dark-mode .stat-value {
+        color: var(--gray-100);
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-top: 0.25rem;
+    }
+
+    .stat-change {
+        font-size: 0.8rem;
+        margin-top: 0.5rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: var(--radius-full);
+    }
+
+    .stat-change.positive {
+        background: var(--green-light);
+        color: var(--green);
+    }
+
+    .stat-change.negative {
+        background: var(--danger-light);
+        color: var(--danger);
+    }
+
+    /* Quick Actions */
+    .quick-actions {
+        margin-bottom: 2rem;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--gray-800);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    body.dark-mode .section-title {
+        color: var(--gray-100);
+    }
+
+    .section-title i {
+        color: var(--bright-blue);
+    }
+
+    .quick-actions-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+    }
+
+    .action-card {
+        background: var(--white);
+        border: 2px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        text-align: center;
+        text-decoration: none;
+        transition: all 0.3s ease;
         display: flex;
         flex-direction: column;
         align-items: center;
+        gap: 0.75rem;
+    }
+
+    body.dark-mode .action-card {
+        background: #1e293b;
+        border-color: #334155;
+    }
+
+    .action-card:hover {
+        border-color: var(--bright-blue);
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-blue);
+    }
+
+    .action-icon {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, var(--light-blue), #d0ebf7);
+        border-radius: var(--radius-lg);
+        display: flex;
+        align-items: center;
         justify-content: center;
-        padding: 1.25rem;
-        text-decoration: none;
-        color: var(--text-main);
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        transition: all 0.2s;
-    }
-
-    .action-grid-card:hover {
-        border-color: var(--accent);
-        color: var(--accent);
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-md);
-    }
-
-    .action-grid-card i {
         font-size: 1.5rem;
-        margin-bottom: 0.5rem;
-        color: var(--accent);
+        color: var(--bright-blue);
+        transition: all 0.3s ease;
     }
 
-    .action-grid-card h6 {
+    body.dark-mode .action-icon {
+        background: rgba(0, 171, 228, 0.2);
+    }
+
+    .action-card:hover .action-icon {
+        background: linear-gradient(135deg, var(--bright-blue), var(--green));
+        color: white;
+        transform: scale(1.1);
+    }
+
+    .action-card h5 {
+        color: var(--gray-800);
+        font-weight: 700;
         margin: 0;
-        font-size: 0.9rem;
+    }
+
+    body.dark-mode .action-card h5 {
+        color: var(--gray-100);
+    }
+
+    .action-card p {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        margin: 0;
+    }
+
+    /* Recent Activity */
+    .activity-card {
+        background: var(--white);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+
+    body.dark-mode .activity-card {
+        background: #1e293b;
+        border-color: #334155;
+    }
+
+    .activity-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    body.dark-mode .activity-header {
+        border-color: #334155;
+    }
+
+    .activity-header h5 {
+        margin: 0;
+        font-weight: 700;
+        color: var(--gray-800);
+    }
+
+    body.dark-mode .activity-header h5 {
+        color: var(--gray-100);
+    }
+
+    .activity-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .activity-item {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        transition: background 0.3s ease;
+    }
+
+    body.dark-mode .activity-item {
+        border-color: #334155;
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .activity-item:hover {
+        background: var(--light-blue);
+    }
+
+    body.dark-mode .activity-item:hover {
+        background: rgba(0, 171, 228, 0.1);
+    }
+
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .activity-icon.safe {
+        background: var(--green-light);
+        color: var(--green);
+    }
+
+    .activity-icon.danger {
+        background: var(--danger-light);
+        color: var(--danger);
+    }
+
+    .activity-icon.info {
+        background: var(--info-light);
+        color: var(--bright-blue);
+    }
+
+    .activity-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .activity-title {
+        font-weight: 600;
+        color: var(--gray-800);
+        margin-bottom: 0.25rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    body.dark-mode .activity-title {
+        color: var(--gray-100);
+    }
+
+    .activity-meta {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .activity-badge {
+        padding: 0.2rem 0.5rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .activity-badge.safe {
+        background: var(--green-light);
+        color: var(--green);
+    }
+
+    .activity-badge.danger {
+        background: var(--danger-light);
+        color: var(--danger);
+    }
+
+    .activity-time {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    /* Security Score */
+    .security-score-card {
+        background: linear-gradient(135deg, var(--bright-blue), #0066cc);
+        border-radius: var(--radius-xl);
+        padding: 2rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+
+    .security-score-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -30%;
+        width: 80%;
+        height: 200%;
+        background: radial-gradient(ellipse at center, rgba(255,255,255,0.2) 0%, transparent 60%);
+    }
+
+    .score-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+
+    .score-header h3 {
+        color: white;
+        margin: 0;
+    }
+
+    .score-circle {
+        width: 100px;
+        height: 100px;
+        background: rgba(255,255,255,0.15);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        font-weight: 800;
+    }
+
+    .score-details {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        position: relative;
+    }
+
+    .score-item {
+        text-align: center;
+        padding: 1rem;
+        background: rgba(255,255,255,0.1);
+        border-radius: var(--radius-md);
+    }
+
+    .score-item-value {
+        font-size: 1.5rem;
+        font-weight: 800;
+    }
+
+    .score-item-label {
+        font-size: 0.8rem;
+        opacity: 0.9;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+    }
+
+    .empty-state-icon {
+        width: 80px;
+        height: 80px;
+        background: var(--light-blue);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        font-size: 2rem;
+        color: var(--bright-blue);
+    }
+
+    body.dark-mode .empty-state-icon {
+        background: rgba(0, 171, 228, 0.2);
+    }
+
+    .empty-state h4 {
+        color: var(--gray-800);
+        margin-bottom: 0.5rem;
+    }
+
+    body.dark-mode .empty-state h4 {
+        color: var(--gray-100);
+    }
+
+    .empty-state p {
+        color: var(--text-muted);
+        margin-bottom: 1.5rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+        .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        .quick-actions-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+        .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+        .quick-actions-grid { grid-template-columns: 1fr; }
+        .score-details { grid-template-columns: 1fr; }
+        .dashboard-header { padding: 1.5rem; }
+        .dashboard-header h1 { font-size: 1.5rem; }
+    }
+
+    @media (max-width: 576px) {
+        .stats-grid { grid-template-columns: 1fr; }
+        .stat-card { padding: 1.25rem; }
+        .action-card { padding: 1.25rem; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container py-4">
-    <!-- Welcome Section -->
-    <div class="dashboard-hero">
-        <div class="row align-items-center">
-            <div class="col-lg-8">
-                <h4 class="fw-bold mb-1">Welcome Back, <span class="gradient-text">{{ session.username }}</span></h4>
-                <p class="text-muted small mb-0">You have scanned {{ stats.total_scans or 0 }} items total.</p>
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1><i class="bi bi-grid-fill me-2"></i>Dashboard</h1>
+                <p>Monitor your security activity and scan URLs</p>
+                <div class="user-welcome">
+                    <div class="user-welcome-avatar">{{ session.username[0]|upper }}</div>
+                    <div class="user-welcome-info">
+                        <h4>Welcome back, {{ session.username }}!</h4>
+                        <span>
+                            <i class="bi bi-calendar3 me-1"></i>
+                            {{ current_date }}
+                        </span>
+                    </div>
+                </div>
             </div>
-            <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
-                <a href="{{ url_for('check_url') }}" class="btn btn-glow">
-                    <i class="bi bi-shield-check me-2"></i>New Scan
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Tools Grid -->
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-lg-3">
-            <a href="{{ url_for('check_url') }}" class="action-grid-card">
-                <i class="bi bi-link-45deg"></i>
-                <h6>URL Scanner</h6>
-            </a>
-        </div>
-        <div class="col-6 col-lg-3">
-            <a href="{{ url_for('email_scanner') }}" class="action-grid-card">
-                <i class="bi bi-envelope"></i>
-                <h6>Email Scanner</h6>
-            </a>
-        </div>
-        <div class="col-6 col-lg-3">
-            <a href="{{ url_for('message_scanner') }}" class="action-grid-card">
-                <i class="bi bi-chat-dots"></i>
-                <h6>Message Scanner</h6>
-            </a>
-        </div>
-        <div class="col-6 col-lg-3">
-            <a href="{{ url_for('social_scanner') }}" class="action-grid-card">
-                <i class="bi bi-people"></i>
-                <h6>Social Media</h6>
-            </a>
-        </div>
-        <div class="col-6 col-lg-3">
-            <a href="{{ url_for('qr_scanner') }}" class="action-grid-card">
-                <i class="bi bi-qr-code"></i>
-                <h6>QR Scanner</h6>
-            </a>
-        </div>
-        <div class="col-6 col-lg-3">
-            <a href="{{ url_for('batch_check') }}" class="action-grid-card">
-                <i class="bi bi-collection"></i>
-                <h6>Batch Check</h6>
+            <a href="{{ url_for('check_url') }}" class="btn btn-light btn-lg shadow">
+                <i class="bi bi-shield-check me-2"></i>Quick Scan
             </a>
         </div>
     </div>
 
-    <!-- Quick Stats -->
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-lg-3">
-            <div class="glass-card p-3">
-                <div class="d-flex align-items-center gap-3">
-                    <div style="width: 44px; height: 44px; background: #dcfce7; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #22c55e;">
-                        <i class="bi bi-shield-check fs-5"></i>
-                    </div>
-                    <div>
-                        <div class="h4 fw-bold mb-0">{{ stats.safe_count or 0 }}</div>
-                        <small class="text-muted">Safe URLs</small>
-                    </div>
-                </div>
+    <!-- Security Score -->
+    <div class="security-score-card">
+        <div class="score-header">
+            <div>
+                <h3><i class="bi bi-shield-fill-check me-2"></i>Security Score</h3>
+                <p class="mb-0 opacity-75">Your overall account protection level</p>
+            </div>
+            <div class="score-circle">
+                <span>{{ security_score }}%</span>
             </div>
         </div>
-        <div class="col-6 col-lg-3">
-            <div class="glass-card p-3">
-                <div class="d-flex align-items-center gap-3">
-                    <div style="width: 44px; height: 44px; background: #fee2e2; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #ef4444;">
-                        <i class="bi bi-shield-exclamation fs-5"></i>
-                    </div>
-                    <div>
-                        <div class="h4 fw-bold mb-0">{{ stats.phishing_count or 0 }}</div>
-                        <small class="text-muted">Phishing</small>
-                    </div>
-                </div>
+        <div class="score-details">
+            <div class="score-item">
+                <div class="score-item-value">{{ total_scans }}</div>
+                <div class="score-item-label">Total Scans</div>
             </div>
-        </div>
-        <div class="col-6 col-lg-3">
-            <div class="glass-card p-3">
-                <div class="d-flex align-items-center gap-3">
-                    <div style="width: 44px; height: 44px; background: #dbeafe; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #3b82f6;">
-                        <i class="bi bi-search fs-5"></i>
-                    </div>
-                    <div>
-                        <div class="h4 fw-bold mb-0">{{ stats.total_scans or 0 }}</div>
-                        <small class="text-muted">Total Scans</small>
-                    </div>
-                </div>
+            <div class="score-item">
+                <div class="score-item-value text-warning">{{ threats_blocked }}</div>
+                <div class="score-item-label">Threats Blocked</div>
             </div>
-        </div>
-        <div class="col-6 col-lg-3">
-            <div class="glass-card p-3">
-                <div class="d-flex align-items-center gap-3">
-                    <div style="width: 44px; height: 44px; background: #fef3c7; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #f59e0b;">
-                        <i class="bi bi-bookmark-heart fs-5"></i>
-                    </div>
-                    <div>
-                        <div class="h4 fw-bold mb-0">{{ recent_bookmarks|length }}</div>
-                        <small class="text-muted">Bookmarks</small>
-                    </div>
-                </div>
+            <div class="score-item">
+                <div class="score-item-value text-success">{{ safe_scans }}</div>
+                <div class="score-item-label">Safe URLs</div>
             </div>
         </div>
     </div>
 
-    <!-- Recent Scans -->
-    <div class="glass-card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Scans</h6>
-            <a href="{{ url_for('history') }}" class="btn btn-sm btn-outline-primary">View All</a>
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-search"></i>
+            </div>
+            <div class="stat-value">{{ total_scans }}</div>
+            <div class="stat-label">Total Scans</div>
+            <div class="stat-change positive">
+                <i class="bi bi-arrow-up"></i> {{ scan_change }}% this week
+            </div>
         </div>
-        <div class="card-body p-0">
-            {% if recent_scans %}
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>URL</th>
-                        <th>Result</th>
-                        <th>Confidence</th>
-                        <th>Date</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for scan in recent_scans[:5] %}
-                    <tr>
-                        <td><code class="small">{{ scan.url[:45] }}...</code></td>
-                        <td>
-                            {% if scan.result == 'phishing' %}
-                            <span class="badge bg-danger">Phishing</span>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-shield-check"></i>
+            </div>
+            <div class="stat-value">{{ safe_scans }}</div>
+            <div class="stat-label">Safe URLs</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div class="stat-value">{{ threats_blocked }}</div>
+            <div class="stat-label">Threats Blocked</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-clock-history"></i>
+            </div>
+            <div class="stat-value">{{ recent_scans }}</div>
+            <div class="stat-label">Today's Scans</div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <h3 class="section-title">
+            <i class="bi bi-lightning-fill"></i>
+            Quick Actions
+        </h3>
+        <div class="quick-actions-grid">
+            <a href="{{ url_for('check_url') }}" class="action-card">
+                <div class="action-icon">
+                    <i class="bi bi-link-45deg"></i>
+                </div>
+                <h5>URL Scanner</h5>
+                <p>Analyze any URL for threats</p>
+            </a>
+            <a href="{{ url_for('email_scanner') }}" class="action-card">
+                <div class="action-icon">
+                    <i class="bi bi-envelope"></i>
+                </div>
+                <h5>Email Scanner</h5>
+                <p>Check emails for phishing</p>
+            </a>
+            <a href="{{ url_for('batch_check') }}" class="action-card">
+                <div class="action-icon">
+                    <i class="bi bi-files"></i>
+                </div>
+                <h5>Batch Check</h5>
+                <p>Scan multiple URLs at once</p>
+            </a>
+            <a href="{{ url_for('qr_scanner') }}" class="action-card">
+                <div class="action-icon">
+                    <i class="bi bi-qr-code"></i>
+                </div>
+                <h5>QR Scanner</h5>
+                <p>Scan QR codes for threats</p>
+            </a>
+            <a href="{{ url_for('social_scanner') }}" class="action-card">
+                <div class="action-icon">
+                    <i class="bi bi-people"></i>
+                </div>
+                <h5>Social Scanner</h5>
+                <p>Check social media links</p>
+            </a>
+            <a href="{{ url_for('bookmarks') }}" class="action-card">
+                <div class="action-icon">
+                    <i class="bi bi-bookmark-heart"></i>
+                </div>
+                <h5>Bookmarks</h5>
+                <p>View saved URLs</p>
+            </a>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="activity-card">
+                <div class="activity-header">
+                    <h5><i class="bi bi-clock-history me-2"></i>Recent Activity</h5>
+                    <a href="{{ url_for('history') }}" class="btn btn-sm btn-outline-primary">
+                        View All <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                {% if recent_activity %}
+                <ul class="activity-list">
+                    {% for activity in recent_activity %}
+                    <li class="activity-item">
+                        <div class="activity-icon {% if activity.is_malicious %}danger{% else %}safe{% endif %}">
+                            {% if activity.is_malicious %}
+                            <i class="bi bi-exclamation-triangle"></i>
                             {% else %}
-                            <span class="badge bg-success">Safe</span>
+                            <i class="bi bi-shield-check"></i>
                             {% endif %}
-                        </td>
-                        <td>
-                            <div class="d-flex align-items-center gap-2">
-                                <div class="progress" style="width: 50px; height: 6px;">
-                                    <div class="progress-bar {{ 'bg-danger' if scan.result == 'phishing' else 'bg-success' }}" style="width: {{ scan.confidence }}%"></div>
-                                </div>
-                                <small>{{ "%.0f"|format(scan.confidence) }}%</small>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-title">{{ activity.url|truncate(50) }}</div>
+                            <div class="activity-meta">
+                                <span class="activity-badge {% if activity.is_malicious %}danger{% else %}safe{% endif %}">
+                                    {% if activity.is_malicious %}Malicious{% else %}Safe{% endif %}
+                                </span>
+                                <span class="activity-time">
+                                    <i class="bi bi-clock"></i> {{ activity.timestamp }}
+                                </span>
                             </div>
-                        </td>
-                        <td class="text-muted small">{{ scan.created_at.strftime('%Y-%m-%d') }}</td>
-                    </tr>
+                        </div>
+                    </li>
                     {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div class="text-center py-4">
-                <i class="bi bi-inbox text-muted" style="font-size: 2rem;"></i>
-                <p class="text-muted mt-2 mb-0">No scans yet</p>
+                </ul>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="bi bi-inbox"></i>
+                    </div>
+                    <h4>No recent activity</h4>
+                    <p>Start scanning URLs to see your activity here</p>
+                    <a href="{{ url_for('check_url') }}" class="btn btn-primary">
+                        <i class="bi bi-search me-2"></i>Start Scanning
+                    </a>
+                </div>
+                {% endif %}
             </div>
-            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Achievements -->
+            <div class="activity-card mb-4">
+                <div class="activity-header">
+                    <h5><i class="bi bi-trophy me-2"></i>Achievements</h5>
+                </div>
+                <div class="p-3">
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for badge in user_badges %}
+                        <div class="badge bg-warning text-dark p-2" title="{{ badge.name }}">
+                            <i class="{{ badge.icon }} me-1"></i> {{ badge.name }}
+                        </div>
+                        {% endfor %}
+                        {% if user_badges|length < 5 %}
+                        <div class="text-muted small p-2">
+                            <i class="bi bi-lock me-1"></i> {{ 5 - user_badges|length }} more to unlock
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Status -->
+            <div class="activity-card">
+                <div class="activity-header">
+                    <h5><i class="bi bi-server me-2"></i>System Status</h5>
+                </div>
+                <div class="p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted">ML Model</span>
+                        <span class="badge bg-success">
+                            <i class="bi bi-check-circle-fill me-1"></i> Active
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted">API Services</span>
+                        <span class="badge bg-success">
+                            <i class="bi bi-check-circle-fill me-1"></i> Online
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted">Database</span>
+                        <span class="badge bg-success">
+                            <i class="bi bi-check-circle-fill me-1"></i> Connected
+                        </span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

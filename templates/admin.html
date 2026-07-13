@@ -213,6 +213,28 @@
 </style>
 {% endblock %}
 
+{% block extra_js %}
+<script>
+// User search functionality
+document.getElementById('userSearch').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const table = document.getElementById('usersTable');
+    const rows = table.querySelectorAll('tbody tr');
+    
+    rows.forEach(row => {
+        const username = row.getAttribute('data-username');
+        const email = row.querySelector('td[data-label="Email"]')?.textContent.toLowerCase() || '';
+        
+        if (username.includes(searchTerm) || email.includes(searchTerm)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+});
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="admin-container">
     <!-- Admin Sidebar -->
@@ -405,43 +427,70 @@
                 <div class="glass-card">
                     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <h6 class="mb-0"><i class="bi bi-people me-2"></i>All Users ({{ users|length }})</h6>
+                        <div class="d-flex gap-2">
+                            <input type="text" class="form-control form-control-sm" placeholder="Search users..." id="userSearch">
+                        </div>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
-                        <table class="table table-hover mb-0">
+                        <table class="table table-hover mb-0" id="usersTable">
                             <thead>
                                 <tr>
                                     <th>User</th>
                                     <th>Email</th>
                                     <th>Role</th>
                                     <th>Scans</th>
+                                    <th>Last Login</th>
                                     <th>Joined</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for user in users %}
-                                <tr>
+                                <tr data-username="{{ user.username.lower() }}">
                                     <td data-label="User">
                                         <div class="d-flex align-items-center gap-2">
                                             <div class="user-avatar">{{ user.username[0]|upper }}</div>
-                                            <span>{{ user.username }}</span>
+                                            <div>
+                                                <div class="fw-semibold">{{ user.username }}</div>
+                                                {% if user.is_admin %}<small class="text-warning"><i class="bi bi-shield-fill me-1"></i>Admin</small>{% endif %}
+                                            </div>
                                         </div>
                                     </td>
                                     <td data-label="Email" class="text-muted">{{ user.email }}</td>
                                     <td data-label="Role">
                                         {% if user.is_admin %}
-                                        <span class="badge bg-primary">Admin</span>
+                                        <span class="badge bg-warning text-dark">Admin</span>
                                         {% else %}
                                         <span class="badge bg-secondary">User</span>
                                         {% endif %}
                                     </td>
-                                    <td data-label="Scans">{{ user.scan_count or 0 }}</td>
-                                    <td data-label="Joined" class="text-muted">{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                                    <td data-label="Scans">
+                                        <span class="badge bg-primary">{{ user.scan_count or 0 }}</span>
+                                    </td>
+                                    <td data-label="Last Login" class="text-muted small">
+                                        {% if user.last_login %}
+                                            {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}
+                                        {% else %}
+                                            Never
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Joined" class="text-muted small">{{ user.created_at.strftime('%Y-%m-%d') }}</td>
                                     <td data-label="Actions">
-                                        <a href="{{ url_for('admin_user_detail', user_id=user.id) }}" class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-eye"></i>
-                                        </a>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('admin_user_detail', user_id=user.id) }}" class="btn btn-outline-primary" title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('toggle_admin', user_id=user.id) }}" class="btn btn-outline-warning" title="Toggle Admin">
+                                                <i class="bi bi-shield"></i>
+                                            </a>
+                                            <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" style="display:inline;" onsubmit="return confirm('Delete user {{ user.username }}?')">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn btn-outline-danger" title="Delete User">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}

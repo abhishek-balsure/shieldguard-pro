@@ -10,6 +10,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Custom CSS -->
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     <!-- Animations CSS -->
@@ -18,14 +20,19 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    <!-- Dark Mode Toggle -->
+    <button class="dark-mode-toggle" id="darkModeToggle" aria-label="Toggle dark mode">
+        <i class="bi bi-moon-fill" id="darkModeIcon"></i>
+    </button>
+
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg sticky-top" style="background: var(--white); box-shadow: 0 2px 20px rgba(0,0,0,0.08);">
+    <nav class="navbar navbar-expand-lg sticky-top" id="mainNav">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="{{ url_for('index') }}">
-                <div style="width: 42px; height: 42px; background: linear-gradient(135deg, var(--bright-blue), var(--green)); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                    <i class="bi bi-shield-fill-check text-white" style="font-size: 1.4rem;"></i>
+                <div class="brand-icon">
+                    <i class="bi bi-shield-fill-check text-white"></i>
                 </div>
-                <span style="font-weight: 800; font-size: 1.35rem;">ShieldGuard <span style="background: linear-gradient(135deg, var(--bright-blue), var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Pro</span></span>
+                <span class="brand-text">ShieldGuard <span class="brand-pro">Pro</span></span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -35,12 +42,12 @@
                     {% if session.user_id %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('dashboard') }}">
-                            <i class="bi bi-grid-fill"></i> Dashboard
+                            <i class="bi bi-grid-fill nav-icon"></i> Dashboard
                         </a>
                     </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                            <i class="bi bi-search"></i> Scanners
+                            <i class="bi bi-search nav-icon"></i> Scanners
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{{ url_for('check_url') }}"><i class="bi bi-link-45deg me-2"></i>URL Scanner</a></li>
@@ -52,7 +59,7 @@
                         </ul>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('history') }}"><i class="bi bi-clock-history"></i> History</a>
+                        <a class="nav-link" href="{{ url_for('history') }}"><i class="bi bi-clock-history nav-icon"></i> History</a>
                     </li>
                     {% endif %}
                 </ul>
@@ -66,12 +73,16 @@
                         </li>
                         {% endif %}
                         <li class="nav-item dropdown ms-lg-3">
-                            <a class="nav-link dropdown-toggle btn btn-glow text-white px-3" href="#" data-bs-toggle="dropdown">
-                                <i class="bi bi-person-circle"></i> {{ session.username }}
+                            <a class="nav-link dropdown-toggle user-menu-btn" href="#" data-bs-toggle="dropdown">
+                                <div class="user-avatar">
+                                    {{ session.username[0]|upper }}
+                                </div>
+                                <span class="user-name">{{ session.username }}</span>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <li><a class="dropdown-item" href="{{ url_for('profile') }}"><i class="bi bi-person-gear me-2"></i>Profile</a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('bookmarks') }}"><i class="bi bi-bookmark-heart me-2"></i>Bookmarks</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('history') }}"><i class="bi bi-clock-history me-2"></i>History</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
                             </ul>
@@ -98,19 +109,31 @@
         </div>
     </nav>
 
+    <!-- Toast Notifications Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
     <!-- Flash Messages -->
-    <div class="container mt-4">
+    <div class="container mt-4" id="flashContainer">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show mb-4" role="alert">
-                        <div class="d-flex align-items-center">
-                            {% if category == 'success' %}<i class="bi bi-check-circle-fill text-success fs-4 me-3"></i>
-                            {% else %}<i class="bi bi-exclamation-triangle-fill text-danger fs-4 me-3"></i>{% endif %}
-                            <div>{{ message }}</div>
-                        </div>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                <div class="alert-custom alert-{{ category }} fade-in" role="alert">
+                    <div class="alert-content">
+                        {% if category == 'success' %}
+                        <i class="bi bi-check-circle-fill alert-icon success"></i>
+                        {% elif category == 'error' or category == 'danger' %}
+                        <i class="bi bi-exclamation-triangle-fill alert-icon error"></i>
+                        {% elif category == 'warning' %}
+                        <i class="bi bi-exclamation-circle-fill alert-icon warning"></i>
+                        {% else %}
+                        <i class="bi bi-info-circle-fill alert-icon info"></i>
+                        {% endif %}
+                        <span>{{ message }}</span>
                     </div>
+                    <button type="button" class="alert-close" data-bs-dismiss="alert" aria-label="Close">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
@@ -122,36 +145,47 @@
     </main>
 
     <!-- Footer -->
-    <footer class="py-5">
+    <footer class="footer">
         <div class="container">
             <div class="row g-4">
                 <div class="col-lg-5">
-                    <h5 class="mb-3">ShieldGuard <span class="gradient-text">Pro</span></h5>
-                    <p class="text-muted">Empowering users with AI-driven threat detection. Our mission is to make the internet a safer place for everyone.</p>
-                    <div class="d-flex gap-3 mt-3">
-                        <a href="https://github.com/abhishek-balsure" target="_blank" class="text-muted fs-5"><i class="bi bi-github"></i></a>
-                        <a href="https://www.linkedin.com/in/abhishek-balsure-61a389313/" target="_blank" class="text-muted fs-5"><i class="bi bi-linkedin"></i></a>
+                    <div class="footer-brand">
+                        <div class="brand-icon-sm">
+                            <i class="bi bi-shield-fill-check"></i>
+                        </div>
+                        <span>ShieldGuard <span class="gradient-text">Pro</span></span>
+                    </div>
+                    <p class="footer-desc">Empowering users with AI-driven threat detection. Our mission is to make the internet a safer place for everyone.</p>
+                    <div class="footer-social">
+                        <a href="https://github.com/abhishek-balsure" target="_blank" class="social-link"><i class="bi bi-github"></i></a>
+                        <a href="https://www.linkedin.com/in/abhishek-balsure-61a389313/" target="_blank" class="social-link"><i class="bi bi-linkedin"></i></a>
+                        <a href="#" class="social-link"><i class="bi bi-twitter-x"></i></a>
                     </div>
                 </div>
                 <div class="col-lg-2 offset-lg-1">
-                    <h6 class="mb-3">Resources</h6>
-                    <ul class="list-unstyled">
+                    <h6 class="footer-title">Resources</h6>
+                    <ul class="footer-links">
                         <li><a href="{{ url_for('about') }}">About Us</a></li>
                         <li><a href="{{ url_for('help_page') }}">Help Center</a></li>
+                        <li><a href="{{ url_for('check_url') }}">Scanner</a></li>
                     </ul>
                 </div>
                 <div class="col-lg-3">
-                    <h6 class="mb-3">Security</h6>
-                    <ul class="list-unstyled">
-                        <li class="text-muted"><i class="bi bi-patch-check-fill text-success me-2"></i>Verified Patterns</li>
-                        <li class="text-muted"><i class="bi bi-cpu-fill text-accent me-2"></i>ML Analysis</li>
-                        <li class="text-muted"><i class="bi bi-shield-fill-check text-muted me-2"></i>256-bit Encryption</li>
+                    <h6 class="footer-title">Security</h6>
+                    <ul class="footer-links">
+                        <li><i class="bi bi-patch-check-fill text-success me-2"></i>Verified Patterns</li>
+                        <li><i class="bi bi-cpu-fill text-accent me-2"></i>ML Analysis</li>
+                        <li><i class="bi bi-shield-fill-check text-muted me-2"></i>256-bit Encryption</li>
                     </ul>
                 </div>
             </div>
-            <hr class="my-4">
-            <div class="text-center">
-                <p class="text-dim small mb-0">&copy; 2026 ShieldGuard Pro. All rights reserved.</p>
+            <hr class="footer-divider">
+            <div class="footer-bottom">
+                <p class="copyright">&copy; 2026 ShieldGuard Pro. All rights reserved.</p>
+                <div class="footer-legal">
+                    <a href="#">Privacy Policy</a>
+                    <a href="#">Terms of Service</a>
+                </div>
             </div>
         </div>
     </footer>
@@ -160,5 +194,95 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     {% block extra_js %}{% endblock %}
+
+    <!-- Global JavaScript -->
+    <script>
+        // Toast Notification System
+        function showToast(type, title, message, duration = 5000) {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            
+            const icons = {
+                success: 'bi-check-circle-fill',
+                error: 'bi-x-circle-fill',
+                warning: 'bi-exclamation-triangle-fill',
+                info: 'bi-info-circle-fill'
+            };
+
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <div class="toast-icon">
+                    <i class="bi ${icons[type]}"></i>
+                </div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button class="toast-close" onclick="closeToast(this)">
+                    <i class="bi bi-x"></i>
+                </button>
+            `;
+
+            container.appendChild(toast);
+
+            // Auto remove
+            const timeout = setTimeout(() => {
+                if (toast.parentNode) closeToast(toast.querySelector('.toast-close'));
+            }, duration);
+
+            toast.querySelector('.toast-close').addEventListener('click', () => clearTimeout(timeout));
+        }
+
+        function closeToast(btn) {
+            const toast = btn.closest('.toast');
+            if (toast) {
+                toast.style.animation = 'slideOut 0.3s ease forwards';
+                setTimeout(() => {
+                    if (toast.parentNode) toast.remove();
+                }, 300);
+            }
+        }
+
+        // Dark Mode Toggle
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const darkModeIcon = document.getElementById('darkModeIcon');
+        
+        // Check for saved preference or system preference
+        const savedTheme = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+            document.body.classList.add('dark-mode');
+            darkModeIcon.className = 'bi bi-sun-fill';
+        }
+
+        if (darkModeToggle) {
+            darkModeToggle.addEventListener('click', () => {
+                document.body.classList.toggle('dark-mode');
+                const isDark = document.body.classList.contains('dark-mode');
+                darkModeIcon.className = isDark ? 'bi bi-sun-fill' : 'bi bi-moon-fill';
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                
+                showToast(
+                    'info', 
+                    isDark ? 'Dark Mode Enabled' : 'Light Mode Enabled',
+                    isDark ? 'Switched to dark theme' : 'Switched to light theme',
+                    2000
+                );
+            });
+        }
+
+        // Auto-dismiss flash messages
+        document.querySelectorAll('.alert-custom').forEach(alert => {
+            setTimeout(() => {
+                alert.style.animation = 'fadeOut 0.3s ease forwards';
+                setTimeout(() => alert.remove(), 300);
+            }, 5000);
+        });
+
+        // Add smooth page transitions
+        document.body.classList.add('page-loaded');
+    </script>
 </body>
 </html>
