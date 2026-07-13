@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy - ShieldGuard Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .legal-page {
+        background: var(--bg-primary);
+        min-height: 100vh;
+        padding: 3rem 0;
+    }
+
+    .legal-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-xl);
+        padding: 3rem;
+        box-shadow: var(--shadow-md);
+    }
+
+    .legal-header {
+        text-align: center;
+        margin-bottom: 3rem;
+        padding-bottom: 2rem;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .legal-header h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--bright-blue), var(--green));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
+    }
+
+    .legal-header .subtitle {
+        color: var(--text-muted);
+        font-size: 1rem;
+    }
+
+    .legal-section {
+        margin-bottom: 2rem;
+    }
+
+    .legal-section h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .legal-section h3 {
+        font-size: 1.15rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 1.5rem 0 0.75rem;
+    }
+
+    .legal-section p {
+        color: var(--text-secondary);
+        line-height: 1.8;
+        margin-bottom: 1rem;
+    }
+
+    .legal-section ul {
+        color: var(--text-secondary);
+        margin-bottom: 1rem;
+        padding-left: 1.5rem;
+    }
+
+    .legal-section li {
+        margin-bottom: 0.5rem;
+        line-height: 1.6;
+    }
+
+    .effective-date {
+        background: rgba(0, 171, 228, 0.1);
+        border-left: 4px solid var(--bright-blue);
+        padding: 1rem 1.5rem;
+        border-radius: 0 var(--radius-md) var(--radius-md) 0;
+        margin-bottom: 2rem;
+    }
+
+    .effective-date strong {
+        color: var(--text-primary);
+    }
+
+    .effective-date span {
+        color: var(--text-secondary);
+    }
+
+    .contact-box {
+        background: var(--gray-50);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        margin-top: 2rem;
+    }
+
+    body.dark-mode .contact-box {
+        background: rgba(0, 0, 0, 0.2);
+    }
+
+    .contact-box h3 {
+        margin-top: 0 !important;
+        color: var(--bright-blue);
+    }
+
+    .data-list {
+        background: rgba(0, 0, 0, 0.02);
+        border-radius: var(--radius-md);
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    body.dark-mode .data-list {
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .data-list strong {
+        color: var(--text-primary);
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    @media (max-width: 768px) {
+        .legal-container {
+            padding: 2rem 1.5rem;
+            margin: 0 1rem;
+        }
+
+        .legal-header h1 {
+            font-size: 2rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="legal-page">
+    <div class="legal-container fade-up">
+        <div class="legal-header">
+            <h1><i class="bi bi-shield-lock-fill me-2"></i>Privacy Policy</h1>
+            <p class="subtitle">How ShieldGuard Pro Protects Your Data</p>
+        </div>
+
+        <div class="effective-date">
+            <strong>Effective Date:</strong> <span>January 1, 2026</span>
+            <br>
+            <strong>Last Updated:</strong> <span>July 13, 2026</span>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-info-circle me-2"></i>Introduction</h2>
+            <p>At ShieldGuard Pro ("we," "our," or "us"), we are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our phishing detection service.</p>
+            <p>Please read this Privacy Policy carefully. By using ShieldGuard Pro, you consent to the practices described in this policy.</p>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-database me-2"></i>Information We Collect</h2>
+
+            <h3>Personal Information</h3>
+            <p>We may collect the following personal information:</p>
+            <div class="data-list">
+                <strong>Account Registration Data:</strong>
+                <ul class="mb-0">
+                    <li>Username</li>
+                    <li>Email address</li>
+                    <li>Password (encrypted/hashed)</li>
+                </ul>
+            </div>
+            <div class="data-list">
+                <strong>OAuth Data (if using social login):</strong>
+                <ul class="mb-0">
+                    <li>OAuth provider (Google/GitHub)</li>
+                    <li>Provider user ID</li>
+                    <li>Public profile information</li>
+                </ul>
+            </div>
+
+            <h3>Usage Information</h3>
+            <p>When you use ShieldGuard Pro, we automatically collect:</p>
+            <ul>
+                <li>IP address</li>
+                <li>Browser type and version</li>
+                <li>Operating system</li>
+                <li>Device information</li>
+                <li>Pages visited and features used</li>
+                <li>Scan history and URLs analyzed</li>
+                <li>Timestamps of your activities</li>
+            </ul>
+
+            <h3>Content You Submit</h3>
+            <p>We collect and process content you voluntarily submit:</p>
+            <ul>
+                <li>URLs you scan for phishing detection</li>
+                <li>Email content and headers (if using email scanner)</li>
+                <li>Messages and QR codes you scan</li>
+                <li>Notes and bookmarks you create</li>
+            </ul>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-gear me-2"></i>How We Use Your Information</h2>
+            <p>We use the collected information to:</p>
+            <ul>
+                <li>Provide, maintain, and improve our phishing detection service</li>
+                <li>Process and analyze URLs, emails, and messages you submit</li>
+                <li>Generate threat detection reports and history</li>
+                <li>Notify you of scan results and security alerts</li>
+                <li>Manage your account and provide customer support</li>
+                <li>Detect, prevent, and address fraud, abuse, and security threats</li>
+                <li>Monitor service performance and ensure system reliability</li>
+                <li>Send you service-related communications</li>
+                <li>Enforce our Terms of Service</li>
+            </ul>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-share me-2"></i>Information Sharing & Disclosure</h2>
+            <p>We do NOT sell, trade, or rent your personal information to third parties. We may share information only in the following circumstances:</p>
+
+            <h3>Service Providers</h3>
+            <p>We may share information with trusted third-party service providers who assist us in:</p>
+            <ul>
+                <li>Cloud hosting and infrastructure (AWS, Azure, Google Cloud)</li>
+                <li>Database services (PostgreSQL)</li>
+                <li>Cache and session management (Redis)</li>
+                <li>Payment processing (Stripe, PayPal)</li>
+                <li>Analytics and monitoring</li>
+            </ul>
+
+            <h3>Legal Requirements</h3>
+            <p>We may disclose information if required to:</p>
+            <ul>
+                <li>Comply with valid legal process or government requests</li>
+                <li>Protect our rights, privacy, safety, or property</li>
+                <li>Investigate potential violations of our Terms</li>
+                <li>Detect and prevent fraud or illegal activities</li>
+            </ul>
+
+            <h3>Business Transfers</h3>
+            <p>If ShieldGuard Pro is acquired, merged, or sold, your information may be transferred as part of that transaction.</p>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-lock me-2"></i>Data Security</h2>
+            <p>We implement industry-standard security measures to protect your data:</p>
+            <ul>
+                <li><strong>Encryption:</strong> Data in transit using TLS/SSL, data at rest using AES-256</li>
+                <li><strong>Access Controls:</strong> Strict access controls and authentication requirements</li>
+                <li><strong>Secure Infrastructure:</strong> Cloud hosting with enterprise-grade security</li>
+                <li><strong>Regular Audits:</strong> Periodic security reviews and vulnerability assessments</li>
+                <li><strong>Employee Training:</strong> Staff trained on data protection best practices</li>
+            </ul>
+            <p>While we strive to protect your information, no method of transmission over the Internet or electronic storage is 100% secure.</p>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-hourglass-split me-2"></i>Data Retention</h2>
+            <p>We retain your information for as long as your account is active or as needed to provide services:</p>
+            <ul>
+                <li><strong>Account Data:</strong> Retained while your account is active; deleted within 30 days of account closure</li>
+                <li><strong>Scan History:</strong> Retained for 12 months; older scans archived or deleted</li>
+                <li><strong>Login Logs:</strong> Retained for 90 days for security purposes</li>
+                <li><strong>OAuth Data:</strong> Retained until you unlink your OAuth account or delete your account</li>
+            </ul>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-person-circle me-2"></i>Your Privacy Rights</h2>
+            <p>You have the following rights regarding your personal information:</p>
+            <ul>
+                <li><strong>Access:</strong> Request a copy of the personal information we hold about you</li>
+                <li><strong>Correction:</strong> Request correction of inaccurate or incomplete data</li>
+                <li><strong>Deletion:</strong> Request deletion of your account and associated data</li>
+                <li><strong>Portability:</strong> Request export of your data in a machine-readable format</li>
+                <li><strong>Opt-out:</strong> Unsubscribe from marketing communications at any time</li>
+            </ul>
+            <p>To exercise these rights, please contact us at privacy@shieldguard-pro.com.</p>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-cookie me-2"></i>Cookies & Tracking</h2>
+            <p>ShieldGuard Pro uses cookies and similar tracking technologies:</p>
+
+            <h3>Essential Cookies</h3>
+            <p>Required for service functionality:</p>
+            <ul>
+                <li>Session management</li>
+                <li>Authentication</li>
+                <li>Security features</li>
+            </ul>
+
+            <h3>Analytics Cookies</h3>
+            <p>Optional cookies for service improvement:</p>
+            <ul>
+                <li>Usage analytics</li>
+                <li>Performance monitoring</li>
+                <li>Feature usage tracking</li>
+            </ul>
+
+            <p>You can control cookies through your browser settings. Disabling essential cookies may affect service functionality.</p>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-envelope me-2"></i>Communications</h2>
+            <p>We may send you the following types of communications:</p>
+            <ul>
+                <li><strong>Service Emails:</strong> Account notifications, security alerts, scan results</li>
+                <li><strong>Marketing Emails:</strong> Product updates, promotions (only with your consent)</li>
+                <li><strong>Support Responses:</strong> Customer support communications</li>
+            </ul>
+            <p>You can opt out of marketing emails by clicking the unsubscribe link or updating your preferences in account settings.</p>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-globe me-2"></i>International Data Transfers</h2>
+            <p>ShieldGuard Pro is operated from India. If you access our service from other countries, your information may be transferred across international borders. We ensure appropriate safeguards are in place for such transfers in compliance with applicable data protection laws.</p>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-children me-2"></i>Children's Privacy</h2>
+            <p>ShieldGuard Pro is not intended for users under the age of 16. We do not knowingly collect personal information from children under 16. If we become aware that we have collected such information, we will take steps to delete it promptly.</p>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-arrow-repeat me-2"></i>Policy Updates</h2>
+            <p>We may update this Privacy Policy periodically. We will notify you of significant changes via:</p>
+            <ul>
+                <li>Email notification to registered users</li>
+                <li>Notice on our website</li>
+                <li>Update to the "Last Updated" date above</li>
+            </ul>
+            <p>Your continued use of ShieldGuard Pro after such changes constitutes acceptance of the updated Privacy Policy.</p>
+        </div>
+
+        <div class="contact-box">
+            <h3><i class="bi bi-envelope me-2"></i>Contact Us</h3>
+            <p>If you have any questions about this Privacy Policy or our data practices, please contact us:</p>
+            <p><strong>Email:</strong> privacy@shieldguard-pro.com<br>
+            <strong>Website:</strong> https://shieldguard-pro.com<br>
+            <strong>Address:</strong> ShieldGuard Pro, India</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Terms of Service - ShieldGuard Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .legal-page {
+        background: var(--bg-primary);
+        min-height: 100vh;
+        padding: 3rem 0;
+    }
+
+    .legal-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-xl);
+        padding: 3rem;
+        box-shadow: var(--shadow-md);
+    }
+
+    .legal-header {
+        text-align: center;
+        margin-bottom: 3rem;
+        padding-bottom: 2rem;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .legal-header h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--bright-blue), var(--green));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
+    }
+
+    .legal-header .subtitle {
+        color: var(--text-muted);
+        font-size: 1rem;
+    }
+
+    .legal-section {
+        margin-bottom: 2rem;
+    }
+
+    .legal-section h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .legal-section h3 {
+        font-size: 1.15rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 1.5rem 0 0.75rem;
+    }
+
+    .legal-section p {
+        color: var(--text-secondary);
+        line-height: 1.8;
+        margin-bottom: 1rem;
+    }
+
+    .legal-section ul {
+        color: var(--text-secondary);
+        margin-bottom: 1rem;
+        padding-left: 1.5rem;
+    }
+
+    .legal-section li {
+        margin-bottom: 0.5rem;
+        line-height: 1.6;
+    }
+
+    .effective-date {
+        background: rgba(0, 171, 228, 0.1);
+        border-left: 4px solid var(--bright-blue);
+        padding: 1rem 1.5rem;
+        border-radius: 0 var(--radius-md) var(--radius-md) 0;
+        margin-bottom: 2rem;
+    }
+
+    .effective-date strong {
+        color: var(--text-primary);
+    }
+
+    .effective-date span {
+        color: var(--text-secondary);
+    }
+
+    .contact-box {
+        background: var(--gray-50);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        margin-top: 2rem;
+    }
+
+    body.dark-mode .contact-box {
+        background: rgba(0, 0, 0, 0.2);
+    }
+
+    .contact-box h3 {
+        margin-top: 0 !important;
+        color: var(--bright-blue);
+    }
+
+    @media (max-width: 768px) {
+        .legal-container {
+            padding: 2rem 1.5rem;
+            margin: 0 1rem;
+        }
+
+        .legal-header h1 {
+            font-size: 2rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="legal-page">
+    <div class="legal-container fade-up">
+        <div class="legal-header">
+            <h1><i class="bi bi-file-earmark-text-fill me-2"></i>Terms of Service</h1>
+            <p class="subtitle">ShieldGuard Pro - ML-Powered Phishing Detection</p>
+        </div>
+
+        <div class="effective-date">
+            <strong>Effective Date:</strong> <span>January 1, 2026</span>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-info-circle me-2"></i>Introduction</h2>
+            <p>Welcome to ShieldGuard Pro ("we," "our," or "us"). By accessing or using our phishing detection service, website, and related applications (collectively, the "Service"), you agree to be bound by these Terms of Service ("Terms").</p>
+            <p>Please read these Terms carefully before using the Service. If you do not agree to these Terms, you may not access or use the Service.</p>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-shield-check me-2"></i>Description of Service</h2>
+            <p>ShieldGuard Pro provides an advanced machine learning-powered phishing detection system that analyzes URLs, emails, QR codes, and messages to identify potential phishing threats. Our service utilizes state-of-the-art ML models with 95%+ detection accuracy.</p>
+            <p>The Service includes:</p>
+            <ul>
+                <li>URL scanning and analysis</li>
+                <li>Email header and content scanning</li>
+                <li>QR code threat detection</li>
+                <li>Social media link analysis</li>
+                <li>Batch URL scanning</li>
+                <li>Threat history and reporting</li>
+            </ul>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-person-check me-2"></i>Account Terms</h2>
+            <h3>Account Registration</h3>
+            <p>To access certain features of the Service, you must create an account. You agree to provide accurate, current, and complete information during registration and to update such information to keep it accurate, current, and complete.</p>
+
+            <h3>Account Security</h3>
+            <p>You are responsible for:</p>
+            <ul>
+                <li>Maintaining the confidentiality of your account credentials</li>
+                <li>All activities that occur under your account</li>
+                <li>Notifying us immediately of any unauthorized use of your account</li>
+            </ul>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-chat-right-text me-2"></i>Acceptable Use</h2>
+            <p>You agree NOT to:</p>
+            <ul>
+                <li>Use the Service for any illegal or unauthorized purpose</li>
+                <li>Attempt to gain unauthorized access to any systems or networks</li>
+                <li>Interfere with or disrupt the Service or servers connected to the Service</li>
+                <li>Use automated tools to scan or test our systems without authorization</li>
+                <li>Share false, malicious, or misleading scan results</li>
+                <li>Reverse engineer, decompile, or disassemble any part of the Service</li>
+            </ul>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-cash-coin me-2"></i>Subscription & Payments</h2>
+            <p>ShieldGuard Pro offers both free and premium subscription plans. By subscribing to a paid plan:</p>
+            <ul>
+                <li>You agree to pay all fees associated with your chosen plan</li>
+                <li>Subscriptions automatically renew unless cancelled at least 24 hours before the end of the current period</li>
+                <li>Refunds are provided at our sole discretion within 7 days of payment</li>
+                <li>You authorize us to charge your payment method for recurring subscription fees</li>
+            </ul>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-graph-up me-2"></i>Service Availability</h2>
+            <p>We strive to maintain 99.9% uptime for our Service. However, we do not guarantee uninterrupted access. Scheduled maintenance may cause temporary service disruptions, of which we will provide advance notice when possible.</p>
+            <p>ShieldGuard Pro is provided "as is" and "as available" without warranties of any kind, either express or implied.</p>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-exclamation-triangle me-2"></i>Limitation of Liability</h2>
+            <p>To the maximum extent permitted by law, ShieldGuard Pro and its operators shall not be liable for:</p>
+            <ul>
+                <li>Any indirect, incidental, special, consequential, or punitive damages</li>
+                <li>Loss of profits, data, goodwill, or other intangible losses</li>
+                <li>Any damages resulting from reliance on scan results or service interruptions</li>
+                <li>Any unauthorized access, hacking, or data loss</li>
+            </ul>
+            <p>Our total liability shall not exceed the amount paid by you (if any) in the 12 months preceding the claim.</p>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-arrow-repeat me-2"></i>Modifications to Terms</h2>
+            <p>We reserve the right to modify these Terms at any time. We will provide notice of significant changes via:</p>
+            <ul>
+                <li>Email notification to registered users</li>
+                <li>Notice on our website</li>
+                <li>Update to the "Effective Date" at the top of this page</li>
+            </ul>
+            <p>Your continued use of the Service after such modifications constitutes acceptance of the updated Terms.</p>
+        </div>
+
+        <div class="legal-section">
+            <h2><i class="bi bi-gavel me-2"></i>Governing Law</h2>
+            <p>These Terms shall be governed by and construed in accordance with applicable laws. Any disputes arising from these Terms or your use of the Service shall be resolved through binding arbitration or in the courts of the jurisdiction where our company is registered.</p>
+        </div>
+
+        <div class="contact-box">
+            <h3><i class="bi bi-envelope me-2"></i>Contact Us</h3>
+            <p>If you have any questions about these Terms of Service, please contact us:</p>
+            <p><strong>Email:</strong> legal@shieldguard-pro.com<br>
+            <strong>Website:</strong> https://shieldguard-pro.com</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
