@@ -29,9 +29,13 @@
     
     /* Status Colors */
     --success: #00C853;
+    --success-light: rgba(0, 200, 83, 0.15);
     --danger: #FF3B30;
+    --danger-light: rgba(255, 59, 48, 0.15);
     --warning: #FF9500;
+    --warning-light: rgba(255, 149, 0, 0.15);
     --info: #00ABE4;
+    --info-light: rgba(0, 171, 228, 0.15);
     
     /* Backgrounds - Light Mode */
     --bg-primary: var(--ivory);
@@ -44,6 +48,11 @@
     --text-primary: var(--gray-800);
     --text-secondary: var(--gray-600);
     --text-muted: var(--gray-500);
+    --text-main: var(--text-primary);
+    
+    /* Accent Colors */
+    --accent: var(--bright-blue);
+    --accent-light: rgba(0, 171, 228, 0.1);
     
     /* Borders */
     --border-color: var(--gray-200);
@@ -53,6 +62,7 @@
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
     --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
     --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.12);
+    --shadow-blue: 0 4px 15px rgba(0, 171, 228, 0.3);
     
     /* Navbar */
     --nav-height: 70px;
@@ -83,6 +93,17 @@ body.dark-mode {
     --text-primary: #f1f5f9;
     --text-secondary: #94a3b8;
     --text-muted: #64748b;
+    --text-main: #f1f5f9;
+    
+    /* Accent - Dark Mode */
+    --accent: #00ABE4;
+    --accent-light: rgba(0, 171, 228, 0.15);
+    
+    /* Status Light Colors - Dark Mode */
+    --success-light: rgba(0, 200, 83, 0.2);
+    --danger-light: rgba(255, 59, 48, 0.2);
+    --warning-light: rgba(255, 149, 0, 0.2);
+    --info-light: rgba(0, 171, 228, 0.2);
     
     /* Borders - Dark Mode */
     --border-color: #334155;
@@ -92,6 +113,7 @@ body.dark-mode {
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
+    --shadow-blue: 0 4px 15px rgba(0, 171, 228, 0.25);
     
     /* Dark Mode Specific */
     --gray-50: #1e293b;

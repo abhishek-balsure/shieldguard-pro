@@ -586,12 +586,17 @@ def init_db():
         )
     ''')
 
-    admin_hash = generate_password_hash('admin123')
-    cur.execute('''
-        INSERT INTO users (username, email, password, is_admin)
-        SELECT %s, %s, %s, %s
-        WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = %s)
-    ''', ('admin', 'admin@phishingdetection.com', admin_hash, 1, 'admin'))
+    # Create admin user - password MUST be set via ADMIN_PASSWORD env var
+    admin_password = os.environ.get('ADMIN_PASSWORD')
+    if admin_password:
+        admin_hash = generate_password_hash(admin_password)
+        cur.execute('''
+            INSERT INTO users (username, email, password, is_admin)
+            SELECT %s, %s, %s, %s
+            WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = %s)
+        ''', ('admin', 'admin@shieldguard-pro.com', admin_hash, 1, 'admin'))
+    else:
+        logger.warning("ADMIN_PASSWORD not set - admin user not created. Set ADMIN_PASSWORD env var for admin access.")
 
     db.commit()
     cur.close()
@@ -1349,9 +1354,9 @@ def forgot_password():
             db.commit()
             
             # In production, send email here
-            # For now, we'll show the token in flash message (demo only)
-            flash(f'Password reset link sent to {email}. (Demo: token={reset_token})', 'success')
-            logger.info(f"Password reset requested for {email}, token: {reset_token[:20]}...")
+            # For demo: log token but don't expose to user
+            logger.info(f"Password reset requested for {email}, token: {reset_token[:20]}... (Check server logs in production)")
+            flash(f'Password reset link sent to {email}.', 'success')
         else:
             # Don't reveal if email exists for security
             flash('If that email exists, a reset link has been sent.', 'info')

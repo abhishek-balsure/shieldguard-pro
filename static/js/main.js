@@ -1,32 +1,7 @@
 /* Main JavaScript - Interactive Features */
 
-// Theme Toggle Functionality
-const themeToggle = document.getElementById('themeToggle');
-const html = document.documentElement;
-
-// Check for saved theme preference or default to dark
-const currentTheme = localStorage.getItem('theme') || 'dark';
-html.setAttribute('data-theme', currentTheme);
-
-// Theme toggle function
-function toggleTheme() {
-  const currentTheme = html.getAttribute('data-theme');
-  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-  html.setAttribute('data-theme', newTheme);
-  localStorage.setItem('theme', newTheme);
-}
-
-// Add theme toggle button to DOM if it doesn't exist
-if (!document.getElementById('themeToggle')) {
-  const toggleButton = document.createElement('button');
-  toggleButton.id = 'themeToggle';
-  toggleButton.className = 'btn btn-outline-primary theme-toggle';
-  toggleButton.innerHTML = '<i class="bi bi-moon"></i>';
-  toggleButton.setAttribute('aria-label', 'Toggle theme');
-  toggleButton.style.cssText = 'position: fixed; top: 1rem; right: 1rem; z-index: 1000;';
-  document.body.appendChild(toggleButton);
-  toggleButton.addEventListener('click', toggleTheme);
-}
+// NOTE: Theme toggle is handled in base.html via darkModeToggle
+// This file contains other interactive features
 
 // Form Handling and Validation
 class FormValidator {

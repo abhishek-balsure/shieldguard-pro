@@ -812,20 +812,14 @@ function togglePassword(inputId, iconBtn) {
     }
 }
 
-// Social login - redirect to OAuth providers
-function socialLogin(provider) {
-    window.location.href = '{{ url_for("login_google") if false }}';
-    // Actual redirect handled by onclick
-}
-
-// Direct OAuth login handlers
+// Social login handlers
 document.querySelectorAll('.btn-social').forEach(btn => {
     btn.addEventListener('click', function(e) {
         e.preventDefault();
-        const provider = this.textContent.trim().toLowerCase();
-        if (provider === 'google') {
+        const btnText = this.textContent.trim().toLowerCase();
+        if (btnText === 'google') {
             window.location.href = '{{ url_for("login_google") }}';
-        } else if (provider === 'github') {
+        } else if (btnText === 'github') {
             window.location.href = '{{ url_for("login_github") }}';
         }
     });
