@@ -1248,7 +1248,7 @@ def dashboard():
         total_scans=total_scans,
         safe_scans=safe_scans,
         threats_blocked=threats_blocked,
-        recent_scans=recent_scans_count,
+        today_scans=recent_scans_count,
         scan_change=scan_change,
         security_score=security_score,
         recent_activity=recent_activity,
