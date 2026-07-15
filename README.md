@@ -19,7 +19,7 @@ ShieldGuard Pro is an enterprise-grade phishing detection platform powered by ma
 ## Features
 
 ### Core Security
-- **ML-Powered Detection**: 95%+ accuracy using Random Forest and XGBoost machine learning models
+- **ML-Powered Detection**: Random Forest model (selected over XGBoost via 5-fold cross-validation) trained on 1,964 labeled URLs — 88% test accuracy, 90.5% CV accuracy, 94.9% AUC-ROC. Full metrics in `model_metrics.json` / `confusion_matrix.png`.
 - **Multi-Format Analysis**: URL, email, QR code, message, and social media link scanning
 - **Batch Processing**: Scan multiple URLs simultaneously
 - **Real-Time Scanning**: Instant threat detection and classification

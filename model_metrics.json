@@ -1,0 +1,99 @@
+{
+  "best_model_name": "RandomForest",
+  "comparison": {
+    "RandomForest": {
+      "accuracy": 0.880407,
+      "precision": 0.906077,
+      "recall": 0.845361,
+      "f1_score": 0.874667,
+      "roc_auc": 0.949321,
+      "training_time_seconds": 0.4819,
+      "cv_accuracy_mean": 0.904787,
+      "cv_accuracy_std": 0.008601,
+      "cv_precision_mean": 0.904107,
+      "cv_recall_mean": 0.903013,
+      "cv_f1_mean": 0.903331,
+      "cv_roc_auc_mean": 0.961393
+    },
+    "XGBoost": {
+      "accuracy": 0.888041,
+      "precision": 0.916667,
+      "recall": 0.850515,
+      "f1_score": 0.882353,
+      "roc_auc": 0.946252,
+      "training_time_seconds": 0.2029,
+      "cv_accuracy_mean": 0.899696,
+      "cv_accuracy_std": 0.004683,
+      "cv_precision_mean": 0.904103,
+      "cv_recall_mean": 0.891667,
+      "cv_f1_mean": 0.89758,
+      "cv_roc_auc_mean": 0.95737
+    }
+  },
+  "feature_ranking": [
+    {
+      "feature": "num_subdomains",
+      "importance": 0.14077
+    },
+    {
+      "feature": "path_length",
+      "importance": 0.116777
+    },
+    {
+      "feature": "url_length",
+      "importance": 0.101328
+    },
+    {
+      "feature": "num_slashes",
+      "importance": 0.084897
+    },
+    {
+      "feature": "digit_ratio",
+      "importance": 0.083927
+    },
+    {
+      "feature": "special_char_ratio",
+      "importance": 0.076873
+    },
+    {
+      "feature": "hostname_length",
+      "importance": 0.071329
+    },
+    {
+      "feature": "url_entropy",
+      "importance": 0.069733
+    },
+    {
+      "feature": "num_digits",
+      "importance": 0.067754
+    },
+    {
+      "feature": "num_dots",
+      "importance": 0.055662
+    },
+    {
+      "feature": "num_hyphens",
+      "importance": 0.037343
+    },
+    {
+      "feature": "has_suspicious_keywords",
+      "importance": 0.034808
+    },
+    {
+      "feature": "has_prefix_suffix",
+      "importance": 0.024768
+    },
+    {
+      "feature": "has_https",
+      "importance": 0.013444
+    },
+    {
+      "feature": "num_underscores",
+      "importance": 0.012489
+    }
+  ],
+  "reports": {
+    "RandomForest": "              precision    recall  f1-score   support\n\n  Legitimate       0.86      0.91      0.89       199\n    Phishing       0.91      0.85      0.87       194\n\n    accuracy                           0.88       393\n   macro avg       0.88      0.88      0.88       393\nweighted avg       0.88      0.88      0.88       393\n",
+    "XGBoost": "              precision    recall  f1-score   support\n\n  Legitimate       0.86      0.92      0.89       199\n    Phishing       0.92      0.85      0.88       194\n\n    accuracy                           0.89       393\n   macro avg       0.89      0.89      0.89       393\nweighted avg       0.89      0.89      0.89       393\n"
+  }
+}

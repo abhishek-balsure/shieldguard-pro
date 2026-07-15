@@ -14,6 +14,10 @@ pandas==2.1.0
 xgboost==2.0.3
 shap==0.44.0
 
+# Model Training / Evaluation (used by train_model.py)
+matplotlib==3.8.2
+seaborn==0.13.2
+
 # HTTP & Web
 requests==2.31.0
 beautifulsoup4==4.12.3
