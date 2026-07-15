@@ -74,6 +74,7 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script_stop: true
+          command_timeout: 20m
           script: |
             mv ~/docker-compose.prod.yml ~/docker-compose.yml
             cat > ~/.env << 'EOF'
