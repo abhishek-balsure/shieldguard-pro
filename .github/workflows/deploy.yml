@@ -73,6 +73,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
           script: |
             mv ~/docker-compose.prod.yml ~/docker-compose.yml
             cat > ~/.env << 'EOF'
@@ -85,8 +86,8 @@ jobs:
             POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
             EOF
             cd ~
-            docker compose down
-            docker compose pull
-            docker compose up -d --remove-orphans
+            docker-compose down
+            docker-compose pull
+            docker-compose up -d --remove-orphans
             docker image prune -f
             echo "✅ Deployed successfully!"
