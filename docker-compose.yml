@@ -5,6 +5,8 @@ services:
     container_name: shieldguard-pro
     ports:
       - "5000:5000"
+    env_file:
+      - .env
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=production
