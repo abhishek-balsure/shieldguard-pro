@@ -51,13 +51,30 @@ jobs:
           docker push abhiishek25/shieldguard-pro:latest
           echo "✅ Image pushed to Docker Hub!"
 
-      - name: Create .env on EC2
+  deploy-to-ec2:
+    runs-on: ubuntu-latest
+    needs: docker-build-push
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Copy docker-compose.prod.yml to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "docker-compose.prod.yml"
+          target: "~/"
+
+      - name: Rename and deploy on EC2
         uses: appleboy/ssh-action@v0.1.5
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            mv ~/docker-compose.prod.yml ~/docker-compose.yml
             cat > ~/.env << 'EOF'
             SECRET_KEY=${{ secrets.SECRET_KEY }}
             DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@db:5432/${{ secrets.POSTGRES_DB }}
@@ -67,19 +84,8 @@ jobs:
             POSTGRES_USER=${{ secrets.POSTGRES_USER }}
             POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
             EOF
-
-  deploy-to-ec2:
-    runs-on: ubuntu-latest
-    needs: docker-build-push
-    steps:
-      - name: Deploy to AWS EC2
-        uses: appleboy/ssh-action@v0.1.5
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
             cd ~
+            docker compose down
             docker compose pull
             docker compose up -d --remove-orphans
             docker image prune -f

@@ -1,20 +1,11 @@
 services:
   web:
-    build: .
+    image: abhiishek25/shieldguard-pro:latest
     container_name: shieldguard-pro
     ports:
       - "5000:5000"
     env_file:
       - .env
-    environment:
-      - FLASK_APP=app.py
-      - FLASK_ENV=production
-      - SECRET_KEY=${SECRET_KEY}
-      - DATABASE_URL=${DATABASE_URL}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - REDIS_URL=${REDIS_URL}
-    volumes:
-      - .:/app
     restart: unless-stopped
     depends_on:
       db:
@@ -36,8 +27,6 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
@@ -49,8 +38,6 @@ services:
     image: redis:7-alpine
     container_name: shieldguard-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
