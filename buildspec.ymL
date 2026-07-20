@@ -1,0 +1,37 @@
+version: 0.2
+
+env:
+  variables:
+    DOCKERHUB_REPO: "abhiishek25/shieldguard-pro"
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      - echo "Installing dependencies..."
+      - pip install -r requirements.txt
+
+  pre_build:
+    commands:
+      - echo "Logging into Docker Hub..."
+      - echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+      - echo "Running import sanity check..."
+      - python -c "import flask; import sklearn; import numpy; import pandas; print('All imports OK')"
+
+  build:
+    commands:
+      - echo "Building Docker image..."
+      - docker build -t $DOCKERHUB_REPO:latest .
+      - docker tag $DOCKERHUB_REPO:latest $DOCKERHUB_REPO:$CODEBUILD_RESOLVED_SOURCE_VERSION
+
+  post_build:
+    commands:
+      - echo "Pushing image to Docker Hub..."
+      - docker push $DOCKERHUB_REPO:latest
+      - docker push $DOCKERHUB_REPO:$CODEBUILD_RESOLVED_SOURCE_VERSION
+      - echo "Build completed on $(date)"
+
+artifacts:
+  files:
+    - docker-compose.prod.yml
