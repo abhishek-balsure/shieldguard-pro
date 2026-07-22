@@ -698,7 +698,12 @@ def admin_required(f):
 def extract_features_for_model(url):
     if not url:
         return np.zeros(len(MODEL_FEATURES)), {}
-    features_dict = extract_features(url)
+    # include_external=False is REQUIRED here: the deployed model was trained
+    # with external features (Alexa/Google/page-rank/live page fetch) disabled.
+    # Enabling them in production causes train/serve skew - the model receives
+    # non-zero values for 10 features it only ever saw as 0 during training,
+    # producing inconsistent predictions (including false positives on safe URLs).
+    features_dict = extract_features(url, include_external=False)
     feature_array = [features_dict.get(f, 0) for f in MODEL_FEATURES]
     return np.array(feature_array), features_dict
 
