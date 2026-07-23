@@ -2417,6 +2417,39 @@ def privacy():
 def help_page():
     return render_template('help.html')
 
+@app.route('/api/quick_check', methods=['POST'])
+@limiter.limit('20 per hour')
+def api_quick_check():
+    """
+    Lightweight, session-cookie-based URL check for the homepage widget.
+    Unlike /api/check_url (JWT-protected, for programmatic API users),
+    this works for anonymous visitors too (rate-limited) so the homepage
+    'Quick Check' box shows REAL model predictions instead of a fake demo.
+    """
+    data = request.get_json(silent=True) or {}
+    url = data.get('url', '').strip()
+    if not url:
+        return jsonify({'error': 'URL is required'}), 400
+    if not url.startswith(('http://', 'https://')):
+        return jsonify({'error': 'URL must start with http:// or https://'}), 400
+
+    result = predict_url(url)
+    if 'error' in result:
+        return jsonify({'error': result['error']}), 500
+
+    if session.get('user_id'):
+        save_scan(session['user_id'], url, result, 'quick')
+
+    return jsonify({
+        'url': url,
+        'result': result['result'],
+        'confidence': result['confidence'],
+        'is_phishing': result['is_phishing'],
+        'is_legitimate': result['is_legitimate'],
+        'logged_in': bool(session.get('user_id')),
+    })
+
+
 @app.route('/healthz')
 @limiter.exempt
 def healthz():
