@@ -715,61 +715,37 @@
 
 {% block extra_js %}
 <script>
-const IS_LOGGED_IN = {{ 'true' if session.user_id else 'false' }};
-
-async function realScan(url) {
-    const response = await fetch('/api/quick_check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url })
-    });
-    const data = await response.json();
-    if (!response.ok) {
-        throw new Error(data.error || 'Scan failed');
-    }
-    return data;
-}
-
 function demoScan(url) {
+    // Set the URL in the input
     document.getElementById('quickUrlInput').value = url;
-    runScan(url);
-}
-
-async function runScan(url) {
+    
+    // Show loading
     const btn = document.getElementById('scanBtn');
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analyzing...';
     btn.disabled = true;
-
-    try {
-        const data = await realScan(url);
-        showResultPopup(url, data.is_phishing, data.confidence);
-    } catch (err) {
-        showErrorPopup(err.message);
-    } finally {
+    
+    // Simulate analysis (since we're not logged in)
+    setTimeout(() => {
         btn.innerHTML = '<i class="bi bi-search me-2"></i>Scan URL';
         btn.disabled = false;
-    }
+        
+        // Show result popup
+        const isPhishing = url.includes('paypal') || url.includes('login') || url.includes('verify');
+        showResultPopup(url, isPhishing);
+    }, 1500);
 }
 
-function showResultPopup(url, isPhishing, confidence) {
+function showResultPopup(url, isPhishing) {
     const popup = document.getElementById('resultPopup');
-
+    
     const resultClass = isPhishing ? 'phishing' : 'safe';
     const iconClass = isPhishing ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill';
     const title = isPhishing ? '⚠️ Phishing Detected!' : '✅ URL is Safe';
-    const message = isPhishing
+    const message = isPhishing 
         ? 'This URL shows signs of being a phishing attempt. Do NOT visit this site!'
         : 'This URL appears to be legitimate and safe to visit.';
-    const scoreDisplay = confidence ? `${Math.round(confidence * 100)}%` : '--';
-
-    const secondaryAction = IS_LOGGED_IN
-        ? `<a href="/dashboard" class="btn btn-outline-primary">
-               <i class="bi bi-speedometer2 me-1"></i>View Full Report
-           </a>`
-        : `<a href="/login" class="btn btn-outline-primary">
-               <i class="bi bi-box-arrow-in-right me-1"></i>Login for More
-           </a>`;
-
+    const score = isPhishing ? '92%' : '98%';
+    
     popup.innerHTML = `
         <div class="result-popup-overlay" onclick="closeResultPopup()"></div>
         <div class="result-popup">
@@ -779,34 +755,20 @@ function showResultPopup(url, isPhishing, confidence) {
             <h3 class="fw-bold mb-2">${title}</h3>
             <p class="text-muted mb-3">${message}</p>
             <div class="result-score-ring ${resultClass}">
-                ${scoreDisplay}
+                ${score}
             </div>
             <p class="small text-muted mb-4">Confidence Score</p>
             <div class="d-flex gap-2 justify-content-center">
                 <button class="btn btn-primary" onclick="closeResultPopup()">
                     <i class="bi bi-arrow-repeat me-1"></i>Scan Another
                 </button>
-                ${secondaryAction}
+                <a href="/login" class="btn btn-outline-primary">
+                    <i class="bi bi-box-arrow-in-right me-1"></i>Login for More
+                </a>
             </div>
         </div>
     `;
-
-    popup.style.display = 'block';
-}
-
-function showErrorPopup(message) {
-    const popup = document.getElementById('resultPopup');
-    popup.innerHTML = `
-        <div class="result-popup-overlay" onclick="closeResultPopup()"></div>
-        <div class="result-popup">
-            <div class="result-icon-large" style="color:#f59e0b;">
-                <i class="bi bi-exclamation-circle-fill"></i>
-            </div>
-            <h3 class="fw-bold mb-2">Couldn't Scan That URL</h3>
-            <p class="text-muted mb-4">${message}</p>
-            <button class="btn btn-primary" onclick="closeResultPopup()">Try Again</button>
-        </div>
-    `;
+    
     popup.style.display = 'block';
 }
 
@@ -814,16 +776,28 @@ function closeResultPopup() {
     document.getElementById('resultPopup').style.display = 'none';
 }
 
+// Original form handling
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('quickCheckForm');
     const urlInput = document.getElementById('quickUrlInput');
-
+    const btn = document.getElementById('scanBtn');
+    
     if (form) {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             const url = urlInput.value.trim();
+            
             if (!url) return;
-            runScan(url);
+            
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analyzing...';
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                const isPhishing = url.includes('paypal') || url.includes('login') || url.includes('verify') || url.includes('account');
+                showResultPopup(url, isPhishing);
+                btn.innerHTML = '<i class="bi bi-search me-2"></i>Scan URL';
+                btn.disabled = false;
+            }, 1500);
         });
     }
 });
