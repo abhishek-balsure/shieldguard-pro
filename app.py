@@ -1551,6 +1551,49 @@ def dashboard():
         current_date=today.strftime('%B %d, %Y')
     )
 
+def get_threat_intel(url):
+    try:
+        parsed = urlparse(url)
+        domain = parsed.netloc.lower()
+        if ':' in domain:
+            domain = domain.split(':')[0]
+            
+        intel = {
+            'domain': domain,
+            'registrar': 'Unknown',
+            'creation_date': 'Unknown',
+            'country': 'Unknown',
+            'isp': 'Unknown',
+            'ip': 'Unknown'
+        }
+        
+        if WHOIS_AVAILABLE:
+            try:
+                w = whois.whois(domain)
+                if w.registrar:
+                    intel['registrar'] = w.registrar[0] if isinstance(w.registrar, list) else w.registrar
+                if w.creation_date:
+                    c_date = w.creation_date[0] if isinstance(w.creation_date, list) else w.creation_date
+                    intel['creation_date'] = c_date.strftime('%Y-%m-%d') if hasattr(c_date, 'strftime') else str(c_date)
+            except Exception as e:
+                logger.warning(f"Whois lookup failed in get_threat_intel: {e}")
+                
+        try:
+            resp = http_requests.get(f'http://ip-api.com/json/{domain}', timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get('status') == 'success':
+                    intel['country'] = data.get('country', 'Unknown')
+                    intel['isp'] = data.get('isp', 'Unknown')
+                    intel['ip'] = data.get('query', 'Unknown')
+        except Exception as e:
+            logger.warning(f"GeoIP lookup failed: {e}")
+            
+        return intel
+    except Exception as e:
+        logger.error(f"Error in get_threat_intel: {e}")
+        return None
+
 @app.route('/check_url', methods=['GET', 'POST'])
 @login_required
 def check_url():
@@ -1565,7 +1608,8 @@ def check_url():
             flash('Please enter a valid URL starting with http:// or https://', 'warning')
         else:
             result = predict_url(url)
-            threat_intel = get_threat_intelligence(url)
+            if result and result.get('is_phishing'):
+                threat_intel = get_threat_intel(url)
             save_scan(session['user_id'], url, result, 'single')
     return render_template('check_url.html', result=result, url=url, threat_intel=threat_intel)
 

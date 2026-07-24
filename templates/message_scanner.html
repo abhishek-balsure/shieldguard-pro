@@ -10,9 +10,9 @@
     }
 
     .message-textarea {
-        background: rgba(255, 255, 255, 0.03) !important;
-        border: 1px solid var(--glass-border) !important;
-        color: var(--text-main) !important;
+        background: var(--bg-secondary) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-primary) !important;
         border-radius: var(--radius-lg) !important;
         padding: 1.5rem !important;
         font-family: 'JetBrains Mono', monospace;
@@ -21,15 +21,17 @@
 
     .message-textarea:focus {
         border-color: var(--accent) !important;
-        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1) !important;
+        box-shadow: 0 0 0 1px var(--accent) !important;
     }
 
     .url-result-pill {
-        background: rgba(15, 23, 42, 0.6);
-        border: 1px solid var(--glass-border);
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
         border-radius: var(--radius-md);
         padding: 1rem 1.5rem;
         margin-bottom: 1rem;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         transition: var(--transition);
         display: flex;
         align-items: center;
@@ -39,7 +41,7 @@
 
     .url-result-pill:hover {
         border-color: var(--accent);
-        background: rgba(15, 23, 42, 0.8);
+        background: var(--bg-secondary);
     }
 
     .url-result-pill.phishing {
@@ -59,10 +61,12 @@
     .platform-btn {
         flex: 1;
         padding: 1rem;
-        border: 2px solid var(--glass-border);
+        border: 2px solid var(--border-color);
         border-radius: var(--radius-md);
-        background: transparent;
-        color: var(--text-main);
+        background: var(--bg-card);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        color: var(--text-primary);
         cursor: pointer;
         transition: var(--transition);
         display: flex;
@@ -73,12 +77,12 @@
 
     .platform-btn:hover {
         border-color: var(--accent);
-        background: rgba(99, 102, 241, 0.1);
+        background: var(--bg-secondary);
     }
 
     .platform-btn.active {
         border-color: var(--accent);
-        background: rgba(99, 102, 241, 0.2);
+        background: var(--bg-secondary);
     }
 
     @media (max-width: 768px) {

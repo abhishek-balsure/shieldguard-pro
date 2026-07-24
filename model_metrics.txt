@@ -1,53 +1,78 @@
 ShieldGuard Pro Model Comparison
 ================================================================================
-Best model: RandomForest
+Best model: XGBoost
 
 RandomForest
 ------------
-accuracy: 0.880407
-precision: 0.906077
-recall: 0.845361
-f1_score: 0.874667
-roc_auc: 0.949321
-training_time_seconds: 0.4819
-cv_accuracy_mean: 0.904787
-cv_accuracy_std: 0.008601
-cv_precision_mean: 0.904107
-cv_recall_mean: 0.903013
-cv_f1_mean: 0.903331
-cv_roc_auc_mean: 0.961393
+accuracy: 0.91762
+precision: 0.891089
+recall: 0.927835
+f1_score: 0.909091
+roc_auc: 0.962051
+training_time_seconds: 0.7899
+cv_accuracy_mean: 0.932206
+cv_accuracy_std: 0.010283
+cv_precision_mean: 0.929955
+cv_recall_mean: 0.916404
+cv_f1_mean: 0.922975
+cv_roc_auc_mean: 0.976894
 
               precision    recall  f1-score   support
 
-  Legitimate       0.86      0.91      0.89       199
-    Phishing       0.91      0.85      0.87       194
+  Legitimate       0.94      0.91      0.92       243
+    Phishing       0.89      0.93      0.91       194
 
-    accuracy                           0.88       393
-   macro avg       0.88      0.88      0.88       393
-weighted avg       0.88      0.88      0.88       393
+    accuracy                           0.92       437
+   macro avg       0.92      0.92      0.92       437
+weighted avg       0.92      0.92      0.92       437
 
 
 XGBoost
 -------
-accuracy: 0.888041
-precision: 0.916667
-recall: 0.850515
-f1_score: 0.882353
-roc_auc: 0.946252
-training_time_seconds: 0.2029
-cv_accuracy_mean: 0.899696
-cv_accuracy_std: 0.004683
-cv_precision_mean: 0.904103
-cv_recall_mean: 0.891667
-cv_f1_mean: 0.89758
-cv_roc_auc_mean: 0.95737
+accuracy: 0.915332
+precision: 0.898477
+recall: 0.912371
+f1_score: 0.905371
+roc_auc: 0.964639
+training_time_seconds: 0.7296
+cv_accuracy_mean: 0.933125
+cv_accuracy_std: 0.010139
+cv_precision_mean: 0.939161
+cv_recall_mean: 0.908167
+cv_f1_mean: 0.923286
+cv_roc_auc_mean: 0.976718
 
               precision    recall  f1-score   support
 
-  Legitimate       0.86      0.92      0.89       199
-    Phishing       0.92      0.85      0.88       194
+  Legitimate       0.93      0.92      0.92       243
+    Phishing       0.90      0.91      0.91       194
 
-    accuracy                           0.89       393
-   macro avg       0.89      0.89      0.89       393
-weighted avg       0.89      0.89      0.89       393
+    accuracy                           0.92       437
+   macro avg       0.91      0.92      0.91       437
+weighted avg       0.92      0.92      0.92       437
+
+
+GradientBoosting
+----------------
+accuracy: 0.910755
+precision: 0.893401
+recall: 0.907216
+f1_score: 0.900256
+roc_auc: 0.968478
+training_time_seconds: 3.1482
+cv_accuracy_mean: 0.933126
+cv_accuracy_std: 0.010338
+cv_precision_mean: 0.939377
+cv_recall_mean: 0.908167
+cv_f1_mean: 0.923177
+cv_roc_auc_mean: 0.977789
+
+              precision    recall  f1-score   support
+
+  Legitimate       0.93      0.91      0.92       243
+    Phishing       0.89      0.91      0.90       194
+
+    accuracy                           0.91       437
+   macro avg       0.91      0.91      0.91       437
+weighted avg       0.91      0.91      0.91       437
 

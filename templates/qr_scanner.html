@@ -10,8 +10,10 @@
     }
 
     .qr-drop-zone {
-        border: 2px dashed var(--glass-border);
-        background: rgba(255, 255, 255, 0.02);
+        border: 2px dashed var(--border-color);
+        background: var(--bg-card);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         border-radius: var(--radius-xl);
         padding: 4rem 2rem;
         text-align: center;
@@ -23,7 +25,7 @@
 
     .qr-drop-zone:hover,
     .qr-drop-zone.dragover {
-        background: rgba(99, 102, 241, 0.05);
+        background: var(--bg-secondary);
         border-color: var(--accent);
         transform: translateY(-5px);
     }
@@ -43,8 +45,8 @@
         margin-top: 2rem;
         border-radius: var(--radius-lg);
         overflow: hidden;
-        border: 1px solid var(--glass-border);
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--border-color);
+        box-shadow: none;
     }
 
     .qr-preview-img {
@@ -53,16 +55,18 @@
     }
 
     .qr-result-box {
-        background: rgba(15, 23, 42, 0.4);
-        border: 1px solid var(--glass-border);
+        background: var(--bg-card);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--border-color);
         border-radius: var(--radius-xl);
         padding: 2.5rem;
         margin-top: 3rem;
     }
 
     .decoded-data-well {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid var(--glass-border);
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
         border-radius: var(--radius-md);
         padding: 1.5rem;
         font-family: 'JetBrains Mono', monospace;

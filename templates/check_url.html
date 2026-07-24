@@ -408,6 +408,44 @@
             </div>
             {% endif %}
 
+            {% if threat_intel %}
+            <div class="glass-card mt-4 p-4 border border-danger">
+                <h5 class="mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-globe2 text-accent"></i> Threat Intelligence
+                </h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="analysis-item">
+                            <span class="analysis-label">IP Address</span>
+                            <span class="analysis-value text-accent">{{ threat_intel.ip }}</span>
+                        </div>
+                        <div class="analysis-item">
+                            <span class="analysis-label">Country</span>
+                            <span class="analysis-value">{{ threat_intel.country }}</span>
+                        </div>
+                        <div class="analysis-item">
+                            <span class="analysis-label">ISP</span>
+                            <span class="analysis-value">{{ threat_intel.isp }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="analysis-item">
+                            <span class="analysis-label">Domain</span>
+                            <span class="analysis-value">{{ threat_intel.domain }}</span>
+                        </div>
+                        <div class="analysis-item">
+                            <span class="analysis-label">Registrar</span>
+                            <span class="analysis-value">{{ threat_intel.registrar }}</span>
+                        </div>
+                        <div class="analysis-item">
+                            <span class="analysis-label">Created</span>
+                            <span class="analysis-value">{{ threat_intel.creation_date }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <div class="d-flex gap-3 mt-5">
                 <button class="btn btn-glow flex-grow-1" data-bs-toggle="modal" data-bs-target="#explainModal">
                     <i class="bi bi-info-circle me-2"></i>Full Breakdown
