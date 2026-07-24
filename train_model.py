@@ -33,9 +33,16 @@ from sklearn.metrics import (
     recall_score,
     roc_auc_score,
 )
-from sklearn.model_selection import StratifiedKFold, cross_validate, train_test_split
+from sklearn.model_selection import StratifiedKFold, cross_validate, train_test_split, RandomizedSearchCV
+from sklearn.ensemble import GradientBoostingClassifier
 
 from feature_extraction import extract_features, features_to_array, get_feature_names
+
+try:
+    from imblearn.over_sampling import SMOTE
+    SMOTE_AVAILABLE = True
+except ImportError:
+    SMOTE_AVAILABLE = False
 
 try:
     from xgboost import XGBClassifier
@@ -44,6 +51,7 @@ except ImportError as exc:
         "xgboost is required for model comparison. Install dependencies from requirements.txt."
     ) from exc
 
+ENABLE_TUNING = os.environ.get('ENABLE_HYPERPARAM_TUNING', 'false').lower() in {'1', 'true', 'yes'}
 DATASET_FILE = os.environ.get('PHISHING_DATASET', 'phishing_data.csv')
 MODEL_OUTPUT = os.environ.get('PHISHING_MODEL_OUTPUT', 'phishing_model.pkl')
 
@@ -72,11 +80,17 @@ def prepare_data(csv_file=DATASET_FILE):
     labels = []
     available_feature_columns = set(feature_names).intersection(df.columns)
 
+    start_extraction_time = time.time()
     for index, row in df.iterrows():
         if index % 1000 == 0:
-            print(f"  Processed {index}/{len(df)} URLs...")
+            percent = (index / len(df)) * 100
+            print(f"  Processed {index}/{len(df)} URLs ({percent:.1f}%)...")
 
-        url = str(row['url'])
+        url = row['url']
+        if pd.isna(url) or not str(url).strip():
+            continue
+            
+        url = str(url)
         label = str(row['label']).strip().lower()
         features_dict = extract_features(url)
 
@@ -91,33 +105,67 @@ def prepare_data(csv_file=DATASET_FILE):
     X = np.array(features_list, dtype=float)
     y = np.array(labels, dtype=int)
 
-    print(f"\nFeature matrix shape: {X.shape}")
+    extraction_time = time.time() - start_extraction_time
+    print(f"\nFeature extraction completed in {extraction_time:.2f} seconds.")
+    print(f"Final Class Distribution:\n  Class 0 (Legitimate): {sum(y == 0)}\n  Class 1 (Phishing): {sum(y == 1)}")
+    print(f"Feature matrix shape: {X.shape}")
     return X, y, feature_names, csv_file
 
 
 def get_model_specs():
-    return {
+    specs = {
         'RandomForest': RandomForestClassifier(
-            n_estimators=200,
-            max_depth=24,
-            min_samples_split=4,
-            min_samples_leaf=2,
+            n_estimators=300,
+            max_depth=None,
+            min_samples_split=3,
+            min_samples_leaf=1,
+            max_features='sqrt',
             random_state=42,
             n_jobs=-1,
             class_weight='balanced',
         ),
         'XGBoost': XGBClassifier(
-            n_estimators=250,
+            n_estimators=500,
             max_depth=8,
-            learning_rate=0.08,
-            subsample=0.9,
-            colsample_bytree=0.9,
+            learning_rate=0.05,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            reg_alpha=0.1,
+            reg_lambda=1.0,
             objective='binary:logistic',
             eval_metric='logloss',
             random_state=42,
             n_jobs=-1,
         ),
+        'GradientBoosting': GradientBoostingClassifier(
+            n_estimators=300,
+            max_depth=6,
+            learning_rate=0.05,
+            subsample=0.8,
+            min_samples_split=4,
+            min_samples_leaf=2,
+            random_state=42,
+        ),
     }
+    
+    try:
+        from lightgbm import LGBMClassifier
+        specs['LightGBM'] = LGBMClassifier(
+            n_estimators=500,
+            max_depth=8,
+            learning_rate=0.05,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            reg_alpha=0.1,
+            reg_lambda=1.0,
+            random_state=42,
+            n_jobs=-1,
+            verbose=-1,
+        )
+    except ImportError:
+        print("LightGBM not available, skipping...")
+        
+    return specs
 
 
 def evaluate_single_model(model_name, estimator, X_train, X_test, y_train, y_test, X_all, y_all):
@@ -187,7 +235,15 @@ def train_and_compare_models(X, y, feature_names):
         X, y, test_size=0.2, random_state=42, stratify=y
     )
 
-    print(f"Training samples: {len(X_train)}")
+    if SMOTE_AVAILABLE:
+        smote = SMOTE(random_state=42)
+        X_train, y_train = smote.fit_resample(X_train, y_train)
+        print(f"After SMOTE - Training samples: {len(X_train)}")
+        print(f"  Class 0: {sum(y_train == 0)}, Class 1: {sum(y_train == 1)}")
+    else:
+        print("SMOTE not available (install imbalanced-learn). Proceeding without oversampling.")
+        print(f"Training samples: {len(X_train)}")
+        
     print(f"Testing samples: {len(X_test)}")
 
     results = {}
@@ -205,6 +261,26 @@ def train_and_compare_models(X, y, feature_names):
     )
 
     best_estimator = clone(get_model_specs()[best_model_name])
+    
+    if ENABLE_TUNING:
+        print(f"\nRunning hyperparameter tuning for {best_model_name}...")
+        param_grid = {}
+        if 'RandomForest' in best_model_name:
+            param_grid = {'n_estimators': [200, 300, 400], 'max_depth': [None, 10, 20]}
+        elif 'XGBoost' in best_model_name:
+            param_grid = {'n_estimators': [300, 500], 'max_depth': [6, 8], 'learning_rate': [0.01, 0.05]}
+        elif 'GradientBoosting' in best_model_name:
+            param_grid = {'n_estimators': [200, 300], 'learning_rate': [0.05, 0.1]}
+        elif 'LightGBM' in best_model_name:
+            param_grid = {'n_estimators': [300, 500], 'learning_rate': [0.01, 0.05]}
+            
+        if param_grid:
+            search = RandomizedSearchCV(best_estimator, param_distributions=param_grid, n_iter=3, cv=3, scoring='f1', random_state=42, n_jobs=-1)
+            search.fit(X_train, y_train)
+            best_estimator = search.best_estimator_
+            print(f"Best params: {search.best_params_}")
+
+    print(f"\nRetraining best model ({best_model_name}) on ALL data (train+test) before saving...")
     best_estimator.fit(X, y)
 
     if hasattr(best_estimator, 'feature_importances_'):
@@ -248,6 +324,21 @@ def save_artifacts(results, best_model_name, feature_names, importances, indices
     plt.savefig('confusion_matrix.png', dpi=300, bbox_inches='tight')
     plt.close()
     print("Confusion matrix saved to: confusion_matrix.png")
+
+    plt.figure(figsize=(10, 6))
+    top_n = min(15, len(feature_names))
+    top_indices = indices[:top_n]
+    top_features = [feature_names[i] for i in top_indices]
+    top_importances = importances[top_indices]
+    
+    sns.barplot(x=top_importances, y=top_features, palette='viridis')
+    plt.title(f'Top {top_n} Feature Importances - {best_model_name}', fontsize=14, fontweight='bold')
+    plt.xlabel('Importance', fontsize=12)
+    plt.ylabel('Feature', fontsize=12)
+    plt.tight_layout()
+    plt.savefig('feature_importances.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    print("Feature importances chart saved to: feature_importances.png")
 
     metrics_payload = {
         'best_model_name': best_model_name,

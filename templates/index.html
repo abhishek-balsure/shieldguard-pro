@@ -18,8 +18,9 @@
         right: -20%;
         width: 600px;
         height: 600px;
-        background: radial-gradient(circle, rgba(0, 171, 228, 0.15) 0%, transparent 70%);
+        background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
         border-radius: 50%;
+        filter: blur(40px);
     }
 
     .hero-section::after {
@@ -29,14 +30,15 @@
         left: -10%;
         width: 400px;
         height: 400px;
-        background: radial-gradient(circle, rgba(0, 155, 77, 0.1) 0%, transparent 70%);
+        background: radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, transparent 70%);
         border-radius: 50%;
+        filter: blur(40px);
     }
 
     .hero-badge {
-        background: linear-gradient(135deg, var(--light-blue), #d0ebf7);
-        border: 1px solid var(--bright-blue);
-        color: var(--bright-blue);
+        background: rgba(99, 102, 241, 0.1);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        color: #6366F1;
         padding: 0.6rem 1.5rem;
         border-radius: 100px;
         font-weight: 600;
@@ -71,7 +73,7 @@
     .scan-card-home {
         max-width: 900px;
         margin: 0 auto;
-        background: var(--white);
+        background: var(--bg-card, var(--white));
         border: none;
         border-radius: var(--radius-xl);
         padding: 2rem;
@@ -90,7 +92,7 @@
         left: 0;
         right: 0;
         height: 6px;
-        background: linear-gradient(90deg, var(--bright-blue), var(--green), var(--tangerine));
+        background: linear-gradient(90deg, #6366F1, #06B6D4, #EC4899);
         border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     }
 
@@ -170,7 +172,7 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        background: white;
+        background: var(--bg-card, white);
         border-radius: 24px;
         padding: 3rem;
         box-shadow: 0 30px 60px rgba(0,0,0,0.3);
@@ -208,13 +210,13 @@
     }
 
     .result-icon-large.safe {
-        background: linear-gradient(135deg, var(--green), #34d399);
+        background: linear-gradient(135deg, #10B981, #34D399);
         color: white;
         box-shadow: 0 10px 40px rgba(16, 185, 129, 0.4);
     }
 
     .result-icon-large.phishing {
-        background: linear-gradient(135deg, var(--danger), #f87171);
+        background: linear-gradient(135deg, #F43F5E, #FB7185);
         color: white;
         box-shadow: 0 10px 40px rgba(239, 68, 68, 0.4);
     }
@@ -243,6 +245,24 @@
         border: 4px solid var(--danger);
     }
 
+    .bento-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        grid-template-rows: auto;
+        gap: 1.25rem;
+    }
+    .bento-grid .bento-lg {
+        grid-column: span 2;
+    }
+    @media (max-width: 992px) {
+        .bento-grid { grid-template-columns: repeat(2, 1fr); }
+        .bento-grid .bento-lg { grid-column: span 2; }
+    }
+    @media (max-width: 576px) {
+        .bento-grid { grid-template-columns: 1fr; }
+        .bento-grid .bento-lg { grid-column: span 1; }
+    }
+
     /* Features */
     .features-section {
         padding: 5rem 0;
@@ -264,7 +284,7 @@
         padding: 2rem;
         border: none;
         border-radius: var(--radius-lg);
-        background: var(--white);
+        background: var(--bg-card, var(--white));
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
         transition: all 0.3s ease;
     }
@@ -306,7 +326,7 @@
 
     /* Stats Section */
     .stats-section {
-        background: linear-gradient(135deg, var(--bright-blue), #0091c7);
+        background: linear-gradient(135deg, #0B0B14, #1A1A2E);
         padding: 4rem 0;
         position: relative;
         overflow: hidden;
@@ -334,6 +354,7 @@
         font-weight: 800;
         line-height: 1;
         margin-bottom: 0.5rem;
+        font-family: 'JetBrains Mono', monospace;
     }
 
     .stat-box .stat-label {
@@ -346,11 +367,11 @@
     /* How It Works */
     .how-section {
         padding: 5rem 0;
-        background: var(--light-blue);
+        background: var(--bg-secondary, #f8fafc);
     }
 
     .how-card {
-        background: var(--white);
+        background: var(--bg-card, var(--white));
         border: none;
         border-radius: var(--radius-lg);
         padding: 2rem;
@@ -361,7 +382,7 @@
     .step-number {
         width: 50px;
         height: 50px;
-        background: linear-gradient(135deg, var(--bright-blue), var(--green));
+        background: linear-gradient(135deg, #6366F1, #06B6D4);
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -388,7 +409,7 @@
     }
 
     .cta-box {
-        background: linear-gradient(135deg, var(--green), #008243);
+        background: linear-gradient(135deg, #6366F1, #EC4899);
         border-radius: var(--radius-xl);
         padding: 4rem 2rem;
         color: var(--white);
@@ -434,8 +455,9 @@
     }
 
     .cta-box .btn:hover {
-        background: var(--tangerine);
-        color: var(--gray-800);
+        background: #fff;
+        color: #0B0B14;
+        box-shadow: 0 0 20px rgba(255,255,255,0.4);
         transform: translateY(-2px);
     }
 
@@ -553,11 +575,11 @@
             <p class="section-subtitle">Everything you need to stay safe online</p>
         </div>
 
-        <div class="row g-4">
-            <div class="col-md-6 col-lg-3">
-                <div class="feature-card animate-card delay-1">
-                    <div class="feature-icon-wrapper">
-                        <i class="bi bi-globe"></i>
+        <div class="bento-grid">
+            <div class="bento-lg">
+                <div class="feature-card animate-card delay-1" style="background: rgba(99, 102, 241, 0.03);">
+                    <div class="feature-icon-wrapper" style="background: linear-gradient(135deg, #e0e7ff, #c7d2fe);">
+                        <i class="bi bi-globe" style="color: #6366F1;"></i>
                     </div>
                     <h4>URL Scanner</h4>
                     <p>Analyze any URL for phishing indicators with 25+ ML features</p>
@@ -566,10 +588,10 @@
                     </a>
                 </div>
             </div>
-            <div class="col-md-6 col-lg-3">
-                <div class="feature-card animate-card delay-2">
-                    <div class="feature-icon-wrapper" style="background: linear-gradient(135deg, #d4edda, #c3e6cb);">
-                        <i class="bi bi-envelope-at" style="color: var(--green);"></i>
+            <div class="bento-lg">
+                <div class="feature-card animate-card delay-2" style="background: rgba(16, 185, 129, 0.03);">
+                    <div class="feature-icon-wrapper" style="background: linear-gradient(135deg, #d1fae5, #a7f3d0);">
+                        <i class="bi bi-envelope-at" style="color: #10B981;"></i>
                     </div>
                     <h4>Email Guardian</h4>
                     <p>Scan emails for suspicious links and phishing patterns</p>
@@ -578,10 +600,10 @@
                     </a>
                 </div>
             </div>
-            <div class="col-md-6 col-lg-3">
-                <div class="feature-card animate-card delay-3">
-                    <div class="feature-icon-wrapper" style="background: linear-gradient(135deg, #e0f2fe, #bae6fd);">
-                        <i class="bi bi-chat-dots" style="color: #0284c7;"></i>
+            <div>
+                <div class="feature-card animate-card delay-3" style="background: rgba(6, 182, 212, 0.03);">
+                    <div class="feature-icon-wrapper" style="background: linear-gradient(135deg, #cffafe, #a5f3fc);">
+                        <i class="bi bi-chat-dots" style="color: #06B6D4;"></i>
                     </div>
                     <h4>Message Scanner</h4>
                     <p>Scan SMS/WhatsApp for hidden phishing links</p>
@@ -590,10 +612,10 @@
                     </a>
                 </div>
             </div>
-            <div class="col-md-6 col-lg-3">
-                <div class="feature-card animate-card delay-4">
+            <div>
+                <div class="feature-card animate-card delay-4" style="background: rgba(236, 72, 153, 0.03);">
                     <div class="feature-icon-wrapper" style="background: linear-gradient(135deg, #fce7f3, #fbcfe8);">
-                        <i class="bi bi-people" style="color: #db2777;"></i>
+                        <i class="bi bi-people" style="color: #EC4899;"></i>
                     </div>
                     <h4>Social Media</h4>
                     <p>Detect fake profiles and impersonation</p>
@@ -602,10 +624,10 @@
                     </a>
                 </div>
             </div>
-            <div class="col-md-6 col-lg-3">
-                <div class="feature-card animate-card">
-                    <div class="feature-icon-wrapper" style="background: linear-gradient(135deg, #fff8e1, #ffecb3);">
-                        <i class="bi bi-qr-code" style="color: #f59e0b;"></i>
+            <div>
+                <div class="feature-card animate-card" style="background: rgba(245, 158, 11, 0.03);">
+                    <div class="feature-icon-wrapper" style="background: linear-gradient(135deg, #fef3c7, #fde68a);">
+                        <i class="bi bi-qr-code" style="color: #F59E0B;"></i>
                     </div>
                     <h4>QR Scanner</h4>
                     <p>Verify QR codes before visiting embedded links</p>
@@ -614,10 +636,10 @@
                     </a>
                 </div>
             </div>
-            <div class="col-md-6 col-lg-3">
-                <div class="feature-card animate-card">
-                    <div class="feature-icon-wrapper" style="background: linear-gradient(135deg, #e9ecef, #dee2e6);">
-                        <i class="bi bi-layers" style="color: var(--gray-600);"></i>
+            <div>
+                <div class="feature-card animate-card" style="background: rgba(100, 116, 139, 0.03);">
+                    <div class="feature-icon-wrapper" style="background: linear-gradient(135deg, #f1f5f9, #e2e8f0);">
+                        <i class="bi bi-layers" style="color: #64748B;"></i>
                     </div>
                     <h4>Batch Analysis</h4>
                     <p>Scan multiple URLs at once for efficiency</p>
@@ -636,26 +658,26 @@
         <div class="row">
             <div class="col-6 col-md-3">
                 <div class="stat-box">
-                    <div class="stat-number">95%</div>
+                    <div class="stat-number">95%+</div>
                     <div class="stat-label">Accuracy</div>
                 </div>
             </div>
             <div class="col-6 col-md-3">
                 <div class="stat-box">
-                    <div class="stat-number">1M+</div>
-                    <div class="stat-label">URLs Scanned</div>
+                    <div class="stat-number">25+</div>
+                    <div class="stat-label">ML Features</div>
                 </div>
             </div>
             <div class="col-6 col-md-3">
                 <div class="stat-box">
-                    <div class="stat-number">50K+</div>
-                    <div class="stat-label">Threats Blocked</div>
+                    <div class="stat-number">&lt;1s</div>
+                    <div class="stat-label">Real-time Analysis</div>
                 </div>
             </div>
             <div class="col-6 col-md-3">
                 <div class="stat-box">
-                    <div class="stat-number">24/7</div>
-                    <div class="stat-label">Protection</div>
+                    <div class="stat-number">5+</div>
+                    <div class="stat-label">Multi-Scanner</div>
                 </div>
             </div>
         </div>

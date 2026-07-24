@@ -5,7 +5,7 @@
 {% block extra_css %}
 <style>
     .dashboard-header {
-        background: linear-gradient(135deg, var(--bright-blue), var(--green));
+        background: linear-gradient(135deg, #6366F1, #06B6D4);
         border-radius: var(--radius-xl);
         padding: 2rem;
         margin-bottom: 2rem;
@@ -44,7 +44,7 @@
     .user-welcome-avatar {
         width: 50px;
         height: 50px;
-        background: rgba(255,255,255,0.2);
+        background: linear-gradient(135deg, #6366F1, #06B6D4);
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -83,8 +83,9 @@
     }
 
     body.dark-mode .stat-card {
-        background: #1e293b;
-        border-color: #334155;
+        background: rgba(26, 26, 46, 0.7);
+        border-color: var(--border-color);
+        backdrop-filter: blur(12px);
     }
 
     .stat-card::before {
@@ -94,8 +95,13 @@
         left: 0;
         right: 0;
         height: 3px;
-        background: linear-gradient(90deg, var(--bright-blue), var(--green));
+        background: linear-gradient(90deg, #6366F1, #06B6D4);
     }
+
+    .stat-card:nth-child(1)::before { background: #6366F1; }
+    .stat-card:nth-child(2)::before { background: #10B981; }
+    .stat-card:nth-child(3)::before { background: #F43F5E; }
+    .stat-card:nth-child(4)::before { background: #06B6D4; }
 
     .stat-card:hover {
         transform: translateY(-4px);
@@ -118,11 +124,11 @@
     }
 
     body.dark-mode .stat-icon {
-        background: rgba(0, 171, 228, 0.2);
+        background: rgba(99, 102, 241, 0.2);
     }
 
     .stat-card:hover .stat-icon {
-        background: linear-gradient(135deg, var(--bright-blue), var(--green));
+        background: linear-gradient(135deg, #6366F1, #06B6D4);
         color: white;
         transform: scale(1.1);
     }
@@ -210,12 +216,12 @@
     }
 
     body.dark-mode .action-card {
-        background: #1e293b;
-        border-color: #334155;
+        background: var(--bg-card);
+        border-color: var(--border-color);
     }
 
     .action-card:hover {
-        border-color: var(--bright-blue);
+        border-color: #6366F1;
         transform: translateY(-4px);
         box-shadow: var(--shadow-blue);
     }
@@ -223,22 +229,22 @@
     .action-icon {
         width: 60px;
         height: 60px;
-        background: linear-gradient(135deg, var(--light-blue), #d0ebf7);
+        background: rgba(99, 102, 241, 0.1);
         border-radius: var(--radius-lg);
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 1.5rem;
-        color: var(--bright-blue);
+        color: #6366F1;
         transition: all 0.3s ease;
     }
 
     body.dark-mode .action-icon {
-        background: rgba(0, 171, 228, 0.2);
+        background: rgba(99, 102, 241, 0.2);
     }
 
     .action-card:hover .action-icon {
-        background: linear-gradient(135deg, var(--bright-blue), var(--green));
+        background: linear-gradient(135deg, #6366F1, #06B6D4);
         color: white;
         transform: scale(1.1);
     }
@@ -268,8 +274,8 @@
     }
 
     body.dark-mode .activity-card {
-        background: #1e293b;
-        border-color: #334155;
+        background: var(--bg-card);
+        border-color: var(--border-color);
     }
 
     .activity-header {
@@ -281,7 +287,7 @@
     }
 
     body.dark-mode .activity-header {
-        border-color: #334155;
+        border-color: var(--border-color);
     }
 
     .activity-header h5 {
@@ -312,7 +318,7 @@
     }
 
     body.dark-mode .activity-item {
-        border-color: #334155;
+        border-color: var(--border-color);
     }
 
     .activity-item:last-child {
@@ -324,7 +330,7 @@
     }
 
     body.dark-mode .activity-item:hover {
-        background: rgba(0, 171, 228, 0.1);
+        background: rgba(99, 102, 241, 0.1);
     }
 
     .activity-icon {
@@ -404,7 +410,7 @@
 
     /* Security Score */
     .security-score-card {
-        background: linear-gradient(135deg, var(--bright-blue), #0066cc);
+        background: linear-gradient(135deg, #6366F1, #06B6D4);
         border-radius: var(--radius-xl);
         padding: 2rem;
         color: white;
@@ -492,7 +498,7 @@
     }
 
     body.dark-mode .empty-state-icon {
-        background: rgba(0, 171, 228, 0.2);
+        background: rgba(99, 102, 241, 0.2);
     }
 
     .empty-state h4 {

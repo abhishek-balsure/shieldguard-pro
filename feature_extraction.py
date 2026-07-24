@@ -42,7 +42,9 @@ BASE_FEATURES = [
     'num_at', 'num_digits', 'num_subdomains', 'has_prefix_suffix',
     'suspicious_tld', 'has_suspicious_keywords', 'is_shortened', 'url_entropy',
     'digit_ratio', 'special_char_ratio', 'path_length', 'query_length',
-    'num_equals', 'num_ampersands', 'has_port', 'brand_in_subdomain'
+    'num_equals', 'num_ampersands', 'has_port', 'brand_in_subdomain',
+    'has_double_slash_redirect', 'domain_token_count', 'tld_length',
+    'has_encoded_chars', 'vowel_consonant_ratio'
 ]
 
 EXTERNAL_FEATURES = [
@@ -334,6 +336,25 @@ def extract_features(url, include_external=None):
     ]
     subdomain = '.'.join(hostname.split('.')[:-2]) if len(hostname.split('.')) > 2 else ""
     features['brand_in_subdomain'] = 1 if any(brand in subdomain for brand in brands) else 0
+
+    # New Feature: Double slash redirect in path
+    features['has_double_slash_redirect'] = 1 if '//' in path[1:] else 0  # skip the leading //
+
+    # New Feature: Domain token count (split by . and -)
+    domain_tokens = re.split(r'[.\-]', hostname)
+    features['domain_token_count'] = len(domain_tokens)
+
+    # New Feature: TLD length
+    tld = hostname.split('.')[-1] if '.' in hostname else ''
+    features['tld_length'] = len(tld)
+
+    # New Feature: URL-encoded characters
+    features['has_encoded_chars'] = 1 if '%' in url else 0
+
+    # New Feature: Vowel to consonant ratio in hostname
+    vowels = sum(1 for c in hostname if c in 'aeiou')
+    consonants = sum(1 for c in hostname if c.isalpha() and c not in 'aeiou')
+    features['vowel_consonant_ratio'] = round(vowels / max(consonants, 1), 4)
 
     use_external = ENABLE_EXTERNAL_URL_FEATURES if include_external is None else include_external
     if use_external:
