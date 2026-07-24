@@ -50,3 +50,8 @@ python-whois==0.9.4
 
 # Optional: Email support
 #Flask-Mail==0.9.1
+
+# Document Parsing
+PyPDF2==3.0.1
+python-docx==1.1.0
+

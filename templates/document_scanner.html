@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Document Scanner - ShieldGuard Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .scanner-form-card {
+        padding: 3rem;
+        margin-bottom: 3rem;
+    }
+
+    .upload-area {
+        border: 2px dashed var(--border-color);
+        border-radius: 12px;
+        padding: 40px;
+        text-align: center;
+        background: var(--bg-surface);
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .upload-area:hover {
+        border-color: var(--accent);
+        background: rgba(99, 102, 241, 0.05);
+    }
+
+    .url-result-pill {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        padding: 1rem 1.5rem;
+        margin-bottom: 1rem;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .url-result-pill:hover {
+        border-color: var(--accent);
+        background: var(--bg-secondary);
+    }
+
+    .url-result-pill.phishing {
+        border-left: 4px solid var(--danger);
+    }
+
+    .url-result-pill.safe {
+        border-left: 4px solid var(--success);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="max-width-900 mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-5 fade-in">
+            <div class="icon-box-sm mx-auto mb-3" style="width: 64px; height: 64px; font-size: 2rem;">
+                <i class="bi bi-file-earmark-pdf text-accent"></i>
+            </div>
+            <h1 class="fw-bold">Document <span class="gradient-text">Scanner</span></h1>
+            <p class="text-dim">Upload an Invoice, PDF, or Word Document to extract and scan all embedded links.</p>
+        </div>
+
+        <!-- Form -->
+        <div class="glass-card scanner-form-card fade-up">
+            <form method="POST" action="{{ url_for('document_scanner') }}" enctype="multipart/form-data">
+                <div class="upload-area mb-4">
+                    <i class="bi bi-cloud-arrow-up display-1 text-accent mb-3"></i>
+                    <h5>Upload Secure Document</h5>
+                    <p class="text-dim mb-3">Drag and drop or click to select</p>
+                    <input type="file" class="form-control" id="file" name="file" accept=".pdf,.docx" required>
+                    <div class="form-text mt-2 text-dim">
+                        <i class="bi bi-shield-lock text-success"></i> Maximum file size: 10MB. Formats: PDF, DOCX
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-glow w-100 py-3">
+                    <i class="bi bi-search me-2"></i>Extract & Analyze Links
+                </button>
+            </form>
+        </div>
+
+        {% if result %}
+        <!-- Results -->
+        <div class="fade-up">
+            <div class="row g-4 mb-5">
+                <div class="col-md-4">
+                    <div class="glass-card text-center p-4">
+                        <div class="h2 fw-bold mb-0 text-accent">{{ result.urls_found }}</div>
+                        <div class="small text-dim uppercase">Links Extracted</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="glass-card text-center p-4">
+                        <div class="h2 fw-bold mb-0 text-danger">{{ result.malicious_urls }}</div>
+                        <div class="small text-dim uppercase">Threats Found</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="glass-card text-center p-4">
+                        <div class="h2 fw-bold mb-0 text-success">{{ result.urls_found - result.malicious_urls }}</div>
+                        <div class="small text-dim uppercase">Verified Safe</div>
+                    </div>
+                </div>
+            </div>
+
+            {% if result.url_results %}
+            <h5 class="mb-4">Link Assessment <span class="text-dim small fw-normal ms-2">({{ result.url_results|length }} items)</span></h5>
+            <div class="mb-5">
+                {% for url_item in result.url_results %}
+                <div class="url-result-pill {% if url_item.result == 'phishing' %}phishing{% else %}safe{% endif %} glass-card">
+                    <div class="overflow-hidden">
+                        <code class="text-accent small text-truncate d-block">{{ url_item.url }}</code>
+                    </div>
+                    <div class="text-end flex-shrink-0">
+                        {% if url_item.result == 'phishing' %}
+                        <span class="badge badge-danger" style="color:white;">THREAT</span>
+                        {% else %}
+                        <span class="badge badge-safe" style="color:black;">SAFE</span>
+                        {% endif %}
+                        <div class="text-dim smaller mt-1">{{ "%.0f"|format(url_item.confidence) }}% Conf.</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="glass-card p-4 {% if result.overall_result == 'suspicious' %}border-danger{% else %}border-success{% endif %} bg-opacity-10">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="icon-box-sm {% if result.overall_result == 'suspicious' %}text-danger{% else %}text-success{% endif %}">
+                        <i class="bi {% if result.overall_result == 'suspicious' %}bi-shield-exclamation{% else %}bi-shield-check{% endif %}"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-1">Security Recommendation</h6>
+                        <p class="text-dim small mb-0">
+                            {% if result.overall_result == 'suspicious' %}
+                            <strong>High Risk:</strong> We've detected malicious links inside this document. Do not open or forward it.
+                            {% elif result.overall_result == 'no_urls' %}
+                            <strong>Info:</strong> No hyperlinks were found in this document.
+                            {% else %}
+                            <strong>Safe:</strong> No malicious patterns detected in the extracted links.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

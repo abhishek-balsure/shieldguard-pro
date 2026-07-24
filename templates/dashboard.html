@@ -676,6 +676,30 @@
         </div>
     </div>
 
+    <!-- Analytics Charts (Chart.js) -->
+    <div class="row g-4 mb-5">
+        <div class="col-lg-8">
+            <div class="activity-card h-100">
+                <div class="activity-header">
+                    <h5><i class="bi bi-graph-up text-accent me-2"></i>Scan Activity (7 Days)</h5>
+                </div>
+                <div class="p-4" style="height: 300px;">
+                    <canvas id="activityChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="activity-card h-100">
+                <div class="activity-header">
+                    <h5><i class="bi bi-pie-chart text-accent me-2"></i>Threat Ratio</h5>
+                </div>
+                <div class="p-4" style="height: 300px;">
+                    <canvas id="threatChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Recent Activity -->
     <div class="row g-4">
         <div class="col-lg-8">
@@ -777,4 +801,76 @@
         </div>
     </div>
 </div>
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const isDarkMode = document.body.classList.contains('dark-mode');
+        const textColor = isDarkMode ? '#F1F5F9' : '#1E293B';
+        const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+        
+        Chart.defaults.color = textColor;
+        Chart.defaults.font.family = "'Inter', sans-serif";
+
+        // Line Chart for Activity
+        const activityCtx = document.getElementById('activityChart').getContext('2d');
+        new Chart(activityCtx, {
+            type: 'line',
+            data: {
+                labels: {{ activity_labels|tojson|safe }},
+                datasets: [{
+                    label: 'URL Scans',
+                    data: {{ url_activity|tojson|safe }},
+                    borderColor: '#6366F1',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }, {
+                    label: 'Email Scans',
+                    data: {{ email_activity|tojson|safe }},
+                    borderColor: '#06B6D4',
+                    backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                },
+                scales: {
+                    x: { grid: { color: gridColor } },
+                    y: { grid: { color: gridColor }, beginAtZero: true }
+                }
+            }
+        });
+
+        // Donut Chart for Threat Ratio
+        const threatCtx = document.getElementById('threatChart').getContext('2d');
+        new Chart(threatCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Safe URLs', 'Threats Blocked'],
+                datasets: [{
+                    data: [{{ safe_scans }}, {{ threats_blocked }}],
+                    backgroundColor: ['#10B981', '#EF4444'],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '75%',
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
 {% endblock %}

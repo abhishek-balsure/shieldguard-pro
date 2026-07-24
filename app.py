@@ -1675,6 +1675,72 @@ def batch_check():
             )
     return render_template('batch.html')
 
+@app.route('/document_scanner', methods=['GET', 'POST'])
+@login_required
+def document_scanner():
+    result = None
+    if request.method == 'POST':
+        file = request.files.get('file')
+        if not file or not file.filename:
+            flash('Please upload a PDF or DOCX file.', 'warning')
+            return render_template('document_scanner.html')
+            
+        try:
+            filename = secure_filename(file.filename)
+            text_content = ""
+            if filename.endswith('.pdf'):
+                try:
+                    import PyPDF2
+                except ImportError:
+                    flash('PDF scanning requires PyPDF2 package.', 'danger')
+                    return render_template('document_scanner.html')
+                reader = PyPDF2.PdfReader(file)
+                for page in reader.pages:
+                    text_content += page.extract_text() + " "
+            elif filename.endswith('.docx'):
+                try:
+                    import docx
+                except ImportError:
+                    flash('DOCX scanning requires python-docx package.', 'danger')
+                    return render_template('document_scanner.html')
+                doc = docx.Document(file)
+                for para in doc.paragraphs:
+                    text_content += para.text + " "
+            else:
+                flash('Unsupported file format. Please upload PDF or DOCX.', 'danger')
+                return render_template('document_scanner.html')
+                
+            # Extract URLs from text
+            urls = extract_urls_from_text(text_content)
+            malicious_urls = 0
+            url_results = []
+            
+            for url in urls[:20]: # Limit to 20 for performance
+                prediction = predict_url(url)
+                url_results.append({
+                    'url': url,
+                    'result': prediction['result'],
+                    'confidence': prediction['confidence']
+                })
+                if prediction['result'] == 'phishing':
+                    malicious_urls += 1
+                    
+            overall = 'suspicious' if malicious_urls > 0 else 'safe'
+            if not urls:
+                overall = 'no_urls'
+                
+            result = {
+                'urls_found': len(urls),
+                'malicious_urls': malicious_urls,
+                'overall_result': overall,
+                'url_results': url_results
+            }
+        except Exception as e:
+            flash(f'Error parsing document: {str(e)}', 'danger')
+            logger.error(f"Document parsing error: {str(e)}")
+            
+    return render_template('document_scanner.html', result=result)
+
 @app.route('/email_scanner', methods=['GET', 'POST'])
 @login_required
 def email_scanner():
